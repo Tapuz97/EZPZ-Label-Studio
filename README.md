@@ -1,16 +1,10 @@
 <div align="center">
-  <img src="public/app-icon.svg" width="72" height="72" alt="EZPZ Label Studio printer icon">
-  <h1>EZPZ Label Studio</h1>
-  <p><strong>Design. Prepare. Print.</strong></p>
+  <p><img src="brandkit/promotional-art/EZPZ-titled-hero-1920x1080.png" width="1000" alt="EZPZ Label Studio — blue printer icon with barcode, shipping, and QR label artwork"></p>
   <p>A desktop workspace for your Bluetooth label printer.<br>Create a design, prepare your artwork, or turn a CSV into a batch of labels.</p>
   <p><a href="https://get.microsoft.com/installer/download/9PNR3K65GQFL?referrer=appbadge" target="_self"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Download EZPZ Label Studio from the Microsoft Store"></a></p>
   <p><a href="https://tapuz97.github.io/EZPZ-Label-Studio/"><strong>Open the web editor</strong></a> &nbsp; · &nbsp; <a href="https://github.com/Tapuz97/EZPZ-Label-Studio/releases/latest">Windows downloads</a> &nbsp; · &nbsp; <a href="examples/templates/sample-templates.json">Sample templates</a></p>
   <p>Native Windows app &nbsp; · &nbsp; Shared web editor &nbsp; · &nbsp; Local file processing</p>
 </div>
-
-<p align="center">
-  <img src="brandkit/promotional-art/EZPZ-super-hero-1920x1080.png" width="1000" alt="White barcode, shipping, and QR label artwork on a blue design grid">
-</p>
 
 <p align="center"><a href="#start-printing">Get started</a> &nbsp; · &nbsp; <a href="#inside-the-studio">Screenshots</a> &nbsp; · &nbsp; <a href="#printer-compatibility">Printer compatibility</a> &nbsp; · &nbsp; <a href="#develop-and-build">Development</a> &nbsp; · &nbsp; <a href="#licence-and-support">Licence &amp; support</a></p>
 
