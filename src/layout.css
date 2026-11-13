@@ -752,6 +752,16 @@ code {
   padding: 28px max(32px, calc((100vw - 1180px) / 2)) 24px;
   background: var(--background);
 }
+.store-download-badge {
+  display: block;
+  max-width: 100%;
+  min-height: 72px;
+}
+.store-download-badge::part(img) {
+  width: 264px;
+  max-width: 100%;
+  height: auto;
+}
 .eyebrow {
   font-size: 10px;
   letter-spacing: 1.6px;

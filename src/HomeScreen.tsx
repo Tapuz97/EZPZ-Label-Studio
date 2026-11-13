@@ -1,5 +1,7 @@
 import { useState } from "react";
 import type { ComponentType } from "react";
+import { isTauri } from "@tauri-apps/api/core";
+import { MicrosoftStoreBadge } from "./components/microsoft-store-badge";
 import {
   FilePlus2,
   FileImage,
@@ -142,7 +144,7 @@ function ActionCard({
 export function HomeScreen({
   doc,
   library,
-  templateLocation = "This browser’s storage (on this device)",
+  templateLocation = "This browserâ€™s storage (on this device)",
   templatesBusy = false,
   connected,
   onResume,
@@ -286,7 +288,7 @@ export function HomeScreen({
                 Stored on this computer, ready to reuse.
               </p>
               <p className="mt-1 max-w-xl break-all text-xs text-muted-foreground" aria-live="polite">
-                {templatesBusy ? "Updating template library…" : templateLocation}
+                {templatesBusy ? "Updating template libraryâ€¦" : templateLocation}
               </p>
             </div>
             <Badge variant="secondary">{library.length}</Badge>
@@ -371,6 +373,8 @@ export function HomeScreen({
           </Empty>
         )}
       </section>
+
+      {!isTauri() && <MicrosoftStoreBadge />}
 
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent>

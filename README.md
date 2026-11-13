@@ -131,6 +131,11 @@ No application account, advertising, analytics, or document-upload service is
 used. Icons and PDF resources are bundled locally. GitHub Pages handles ordinary
 website requests under its own privacy terms. Read the [privacy policy](https://tapuz97.github.io/EZPZ-Label-Studio/privacy.html).
 
+The web Home screen loads Microsoft's interactive Store badge from Microsoft.
+Badge and download requests follow Microsoft's privacy terms and do not include
+your label files. The installed Windows app does not load the badge. The README
+uses Microsoft's hosted static badge because GitHub does not run badge scripts.
+
 “Sent” means Bluetooth writes completed, not that a sensor confirmed paper
 output. Failed transfers are never automatically retried. Cancel stops remaining
 writes; buffered data may still print. After an interrupted bitmap transfer,
