@@ -78,8 +78,8 @@ describe("snap policy", () => {
   });
   it("snaps both free rectangle dimensions", () => {
     const e = { ...makeElement("rect"), width: 20, height: 10 };
-    const d = snapResizeDelta(e, "br", 2.2, 3.3);
-    const result = resizeElement(e, "br", d.dx, d.dy, 100, 100);
+    const d = snapResizeDelta(e, "br", 2.2, 3.3, true);
+    const result = resizeElement(e, "br", d.dx, d.dy, 100, 100, true);
     expect(result.width).toBe(22);
     expect(result.height).toBe(13);
   });

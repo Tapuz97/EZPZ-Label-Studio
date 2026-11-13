@@ -1,5 +1,20 @@
 # Frontend validation
 
+## Version 0.6.1 — tooltips and proportional handles
+
+- 75 frontend tests pass. Crop geometry covers every edge, proportional corner
+  clamping and Shift-unlocked corners. Resize tests cover eight object handles,
+  proportional corners, independent sides, text scaling and snapping.
+- Actual Chromium pointer checks passed eight crop handles, corner aspect lock,
+  Shift toggling during a drag, independent side cropping, object side resizing
+  and text corner scaling. Image side resizing changes the frame while preserving
+  the source's proportions; use Crop for trimming the source image.
+- Installed the official shadcn Tooltip component. All 13 text creator-bar icons
+  passed hover checks; keyboard focus also displays the tooltip. Toggle selection
+  state remains separate from tooltip open state. Image Crop uses the same tooltip.
+- Corner gestures preserve proportions by default; Shift unlocks them. Crop arrow
+  keys follow the same policy; Alt increases keyboard adjustment steps.
+
 ## Version 0.6.0 — final editor feature pass
 
 - 69 frontend tests pass, including CSV component IDs and required headers,

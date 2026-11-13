@@ -28,7 +28,7 @@ import {
   type Alignment,
 } from "./editor-geometry";
 import { resizeElement } from "./resize";
-import type { ResizeCorner } from "./resize";
+import type { ResizeHandle } from "./resize";
 import { loadTemplateLibrary, saveTemplateLibrary } from "./template-store";
 import { parseTemplateFiles, templateBundle } from "./templates";
 import { Button } from "@/components/ui/button";
@@ -371,7 +371,7 @@ export default function App() {
     startY: number;
     x: number;
     y: number;
-    corner?: ResizeCorner;
+    corner?: ResizeHandle;
     rotating?: boolean;
     next: LabelDocument;
   } | null>(null);
@@ -708,7 +708,13 @@ export default function App() {
       };
       const delta =
         snap && !e.altKey
-          ? snapResizeDelta(element, d.corner, rawDelta.dx, rawDelta.dy)
+          ? snapResizeDelta(
+              element,
+              d.corner,
+              rawDelta.dx,
+              rawDelta.dy,
+              e.shiftKey,
+            )
           : rawDelta;
       const resized = resizeElement(
         element,
@@ -717,6 +723,7 @@ export default function App() {
         delta.dy,
         doc.widthMm,
         doc.heightMm,
+        e.shiftKey,
       );
       d.next = {
         ...doc,
@@ -771,7 +778,7 @@ export default function App() {
   function beginResize(
     e: PointerEvent<HTMLButtonElement>,
     element: LabelElement,
-    corner: ResizeCorner,
+    corner: ResizeHandle,
   ) {
     beginDrag(e, element);
     if (e.button === 0 && drag.current) drag.current.corner = corner;
@@ -964,7 +971,10 @@ export default function App() {
       const rows = parseCsv(await file.text());
       validateCsvColumns(doc, rows);
       setPdfDocuments([]);
-            setCsvRows([]); setCsvName(""); setCsvRow(0); setBatch(false);
+      setCsvRows([]);
+      setCsvName("");
+      setCsvRow(0);
+      setBatch(false);
       setCsvRows(rows);
       setPendingWork(true);
       setCsvName(file.name);
@@ -1222,7 +1232,10 @@ export default function App() {
           onNew={(widthMm, heightMm, name) => {
             update({ ...doc, widthMm, heightMm, name, elements: [] });
             setPdfDocuments([]);
-            setCsvRows([]); setCsvName(""); setCsvRow(0); setBatch(false);
+            setCsvRows([]);
+            setCsvName("");
+            setCsvRow(0);
+            setBatch(false);
             setCsvRows([]);
             setSelectedId(null);
             setScreen("editor");
@@ -1231,7 +1244,10 @@ export default function App() {
           onLoad={(d) => {
             update(d);
             setPdfDocuments([]);
-            setCsvRows([]); setCsvName(""); setCsvRow(0); setBatch(false);
+            setCsvRows([]);
+            setCsvName("");
+            setCsvRow(0);
+            setBatch(false);
             setCsvRows([]);
             setSelectedId(null);
             setScreen("editor");
@@ -1381,7 +1397,10 @@ export default function App() {
                     });
                     setSelectedId(null);
                     setPdfDocuments([]);
-            setCsvRows([]); setCsvName(""); setCsvRow(0); setBatch(false);
+                    setCsvRows([]);
+                    setCsvName("");
+                    setCsvRow(0);
+                    setBatch(false);
                   }}
                 >
                   <FilePlus2 size={16} />
@@ -1423,7 +1442,10 @@ export default function App() {
                           update(t.document);
                           setSelectedId(null);
                           setPdfDocuments([]);
-            setCsvRows([]); setCsvName(""); setCsvRow(0); setBatch(false);
+                          setCsvRows([]);
+                          setCsvName("");
+                          setCsvRow(0);
+                          setBatch(false);
                         }}
                       >
                         <Tag size={18} />
@@ -1770,40 +1792,67 @@ export default function App() {
                         </Button>
                       )}
                       {selectedId === el.id &&
-                        (["tl", "tr", "bl", "br"] as ResizeCorner[]).map(
-                          (corner) => (
-                            <Button
-                              key={corner}
-                              variant="outline"
-                              size="icon-xs"
-                              aria-label={`Resize ${el.kind} ${corner.startsWith("t") ? "top" : "bottom"} ${corner.endsWith("l") ? "left" : "right"}`}
-                              title={
-                                el.kind === "image"
-                                  ? "Drag to resize artwork proportionally"
-                                  : "Drag to resize"
-                              }
-                              className="absolute z-10 rounded-none border-primary bg-background p-0 shadow-sm"
-                              style={{
-                                width: 10,
-                                height: 10,
-                                minWidth: 10,
-                                left: corner.endsWith("l") ? -5 : undefined,
-                                right: corner.endsWith("r") ? -5 : undefined,
-                                top: corner.startsWith("t") ? -5 : undefined,
-                                bottom: corner.startsWith("b") ? -5 : undefined,
-                                cursor:
-                                  corner === "tl" || corner === "br"
+                        (
+                          [
+                            "tl",
+                            "t",
+                            "tr",
+                            "r",
+                            "br",
+                            "b",
+                            "bl",
+                            "l",
+                          ] as ResizeHandle[]
+                        ).map((corner) => (
+                          <Button
+                            key={corner}
+                            variant="outline"
+                            size="icon-xs"
+                            aria-label={`Resize ${el.kind} ${{ tl: "top left", t: "top", tr: "top right", r: "right", br: "bottom right", b: "bottom", bl: "bottom left", l: "left" }[corner]}`}
+                            title={
+                              corner.length === 2
+                                ? "Drag corner to scale proportionally. Hold Shift for free resize."
+                                : "Drag side to change frame dimensions. Image proportions stay preserved."
+                            }
+                            className="absolute z-10 rounded-none border-primary bg-background p-0 shadow-sm"
+                            style={{
+                              width:
+                                corner.length === 1 && "tb".includes(corner)
+                                  ? 18
+                                  : 10,
+                              height:
+                                corner.length === 1 && "lr".includes(corner)
+                                  ? 18
+                                  : 10,
+                              minWidth: 10,
+                              left: corner.includes("l")
+                                ? -5
+                                : corner.includes("r")
+                                  ? undefined
+                                  : "calc(50% - 9px)",
+                              right: corner.includes("r") ? -5 : undefined,
+                              top: corner.includes("t")
+                                ? -5
+                                : corner.includes("b")
+                                  ? undefined
+                                  : "calc(50% - 9px)",
+                              bottom: corner.includes("b") ? -5 : undefined,
+                              cursor:
+                                corner.length === 1
+                                  ? "lr".includes(corner)
+                                    ? "ew-resize"
+                                    : "ns-resize"
+                                  : corner === "tl" || corner === "br"
                                     ? "nwse-resize"
                                     : "nesw-resize",
-                                touchAction: "none",
-                              }}
-                              onPointerDown={(e) => beginResize(e, el, corner)}
-                              onPointerMove={dragMove}
-                              onPointerUp={endDrag}
-                              onPointerCancel={endDrag}
-                            />
-                          ),
-                        )}
+                              touchAction: "none",
+                            }}
+                            onPointerDown={(e) => beginResize(e, el, corner)}
+                            onPointerMove={dragMove}
+                            onPointerUp={endDrag}
+                            onPointerCancel={endDrag}
+                          />
+                        ))}
                     </div>
                   ))}
                 </div>
@@ -1819,7 +1868,7 @@ export default function App() {
             <span>
               <MousePointer2 size={14} />
               {selected
-                ? "Drag to move · corners resize · top handle rotates · Snap: 1 mm / 15° · Alt: free · Shift: 15°"
+                ? "Corners: proportional · Shift: free resize · sides: frame · round handle: rotate · Alt: bypass snap"
                 : "Select an element to edit it"}
             </span>
             <span>

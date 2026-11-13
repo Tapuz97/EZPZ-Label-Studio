@@ -2,35 +2,35 @@ import type { LabelElement } from "./model";
 import { clamp } from "./model";
 
 export type ResizeCorner = "tl" | "tr" | "bl" | "br";
+export type ResizeHandle = ResizeCorner | "t" | "b" | "l" | "r";
 export function resizeElement(
   element: LabelElement,
-  corner: ResizeCorner,
+  corner: ResizeHandle,
   dxMm: number,
   dyMm: number,
   labelWidth: number,
   labelHeight: number,
+  unlockAspect = false,
 ) {
-  const sx = corner.endsWith("r") ? 1 : -1;
-  const sy = corner.startsWith("b") ? 1 : -1;
+  const sx = corner.includes("r") ? 1 : corner.includes("l") ? -1 : 0;
+  const sy = corner.includes("b") ? 1 : corner.includes("t") ? -1 : 0;
+  const proportional = corner.length === 2 && !unlockAspect;
+  const minimum = element.kind === "line" ? 0.1 : 0.5;
   const angle = (element.rotation * Math.PI) / 180;
   const c = Math.cos(angle),
     s = Math.sin(angle);
   const localX = c * dxMm + s * dyMm,
     localY = -s * dxMm + c * dyMm;
-  let width = clamp(element.width + sx * localX, 0.5, labelWidth);
-  let height = clamp(element.height + sy * localY, 0.5, labelHeight);
-  if (
-    element.kind === "image" ||
-    element.kind === "text" ||
-    element.kind === "qr"
-  ) {
+  let width = clamp(element.width + sx * localX, minimum, labelWidth);
+  let height = clamp(element.height + sy * localY, minimum, labelHeight);
+  if (proportional) {
     const scaleX = width / element.width,
       scaleY = height / element.height;
     const requestedScale =
       Math.abs(scaleX - 1) > Math.abs(scaleY - 1) ? scaleX : scaleY;
     const scale = clamp(
       requestedScale,
-      Math.max(0.5 / element.width, 0.5 / element.height),
+      Math.max(minimum / element.width, minimum / element.height),
       Math.min(labelWidth / element.width, labelHeight / element.height),
     );
     width = element.width * scale;
@@ -46,8 +46,15 @@ export function resizeElement(
     element.height / 2 +
     (sx * (width - element.width) * s + sy * (height - element.height) * c) / 2;
   return {
-    ...(element.kind === "text"
-      ? { fontSize: clamp((element.fontSize * width) / element.width, 2, 144) }
+    ...(element.kind === "text" && corner.length === 2
+      ? {
+          fontSize: clamp(
+            element.fontSize *
+              (proportional ? width / element.width : height / element.height),
+            2,
+            144,
+          ),
+        }
       : {}),
     width,
     height,

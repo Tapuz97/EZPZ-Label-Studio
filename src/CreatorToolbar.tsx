@@ -1,4 +1,6 @@
-import { useState } from "react";
+import type { ReactElement } from "react";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./components/ui/tooltip";
+import { useState, useId, cloneElement } from "react";
 import { CropEditor } from "./CropEditor";
 import { CropDuotoneIcon as Crop } from "@thesvg/ui-react";
 import type { LabelElement } from "./model";
@@ -48,21 +50,20 @@ export function CreatorToolbar({
 }) {
   const [cropping, setCropping] = useState(false);
   return (
-    <div
+    <TooltipProvider delayDuration={250}><div
       role="region"
       aria-label="Component creator tools"
       className="flex flex-wrap items-center gap-x-3 gap-y-2"
     >
       {element.kind === "image" && (
-        <Button
+        <ToolbarTooltip label="Crop image"><Button
           variant="ghost"
           size="icon-sm"
           aria-label="Crop image"
-          title="Crop image"
           onClick={() => setCropping(true)}
         >
           <Crop />
-        </Button>
+        </Button></ToolbarTooltip>
       )}
       {cropping && element.kind === "image" && (
         <CropEditor
@@ -118,15 +119,14 @@ export function CreatorToolbar({
                 onChange({ fontSize: n });
             }}
           />
-          <Toggle
+          <ToolbarTooltip label="Bold text"><Toggle
             size="sm"
             pressed={element.bold}
             onPressedChange={(bold) => onChange({ bold })}
             aria-label="Bold text"
-            title="Bold"
           >
             <Bold />
-          </Toggle>
+          </Toggle></ToolbarTooltip>
           <ToggleGroup
             type="single"
             size="sm"
@@ -136,27 +136,24 @@ export function CreatorToolbar({
               if (align) onChange({ align: align as LabelElement["align"] });
             }}
           >
-            <ToggleGroupItem
+            <ToolbarTooltip label="Align text left"><ToggleGroupItem
               value="left"
               aria-label="Align text left"
-              title="Align text left"
             >
               <AlignLeft />
-            </ToggleGroupItem>
-            <ToggleGroupItem
+            </ToggleGroupItem></ToolbarTooltip>
+            <ToolbarTooltip label="Center text"><ToggleGroupItem
               value="center"
               aria-label="Center text"
-              title="Center text"
             >
               <AlignCenter />
-            </ToggleGroupItem>
-            <ToggleGroupItem
+            </ToggleGroupItem></ToolbarTooltip>
+            <ToolbarTooltip label="Align text right"><ToggleGroupItem
               value="right"
               aria-label="Align text right"
-              title="Align text right"
             >
               <AlignRight />
-            </ToggleGroupItem>
+            </ToggleGroupItem></ToolbarTooltip>
           </ToggleGroup>
         </div>
       )}
@@ -188,16 +185,15 @@ export function CreatorToolbar({
           </FormSelect>
         </div>
         {alignments.map(([mode, label, Icon]) => (
-          <Button
-            key={mode}
+          <ToolbarTooltip key={mode} label={label}><Button
+            
             variant="ghost"
             size="icon-sm"
             aria-label={label}
-            title={label}
             onClick={() => onAlign(mode)}
           >
             <Icon />
-          </Button>
+          </Button></ToolbarTooltip>
         ))}
       </div>
       <div
@@ -205,34 +201,38 @@ export function CreatorToolbar({
         aria-label="Rotate and arrange"
         className="flex items-center gap-1"
       >
-        <Button
+        <ToolbarTooltip label="Rotate clockwise 90 degrees"><Button
           variant="ghost"
           size="icon-sm"
           aria-label="Rotate clockwise 90 degrees"
-          title="Rotate clockwise 90°"
           onClick={() => onChange({ rotation: (element.rotation + 90) % 360 })}
         >
           <RotateCw />
-        </Button>
-        <Button
+        </Button></ToolbarTooltip>
+        <ToolbarTooltip label="Bring component forward"><Button
           variant="ghost"
           size="icon-sm"
           aria-label="Bring component forward"
-          title="Bring forward"
           onClick={() => onLayer(1)}
         >
           <ArrowUp />
-        </Button>
-        <Button
+        </Button></ToolbarTooltip>
+        <ToolbarTooltip label="Send component backward"><Button
           variant="ghost"
           size="icon-sm"
           aria-label="Send component backward"
-          title="Send backward"
           onClick={() => onLayer(-1)}
         >
           <ArrowDown />
-        </Button>
+        </Button></ToolbarTooltip>
       </div>
-    </div>
+    </div></TooltipProvider>
   );
+}
+
+function ToolbarTooltip({label,children}:{label:string;children:ReactElement<{ "aria-describedby"?: string }> }) {
+  const id = useId();
+  const [open, setOpen] = useState(false);
+  // Keep Tooltip's data-state separate from Toggle/ToggleGroup selected state.
+  return <Tooltip open={open} onOpenChange={setOpen}><TooltipTrigger asChild><span className="inline-flex">{cloneElement(children, { "aria-describedby": open ? id : undefined })}</span></TooltipTrigger><TooltipContent id={id} side="bottom" sideOffset={6}>{label}</TooltipContent></Tooltip>;
 }

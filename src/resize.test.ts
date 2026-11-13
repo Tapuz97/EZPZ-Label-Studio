@@ -57,7 +57,57 @@ describe("artwork corner resize", () => {
       x: 0,
       y: 0,
       width: 60,
-      height: 90,
+      height: 60,
     });
+  });
+});
+
+describe("eight resize handles", () => {
+  it("side handles resize only their axis", () => {
+    const e = { ...makeElement("image"), x: 20, y: 20, width: 40, height: 20 };
+    expect(resizeElement(e, "r", 10, 99, 100, 100)).toEqual({
+      x: 20,
+      y: 20,
+      width: 50,
+      height: 20,
+    });
+    expect(resizeElement(e, "t", 99, -10, 100, 100)).toEqual({
+      x: 20,
+      y: 10,
+      width: 40,
+      height: 30,
+    });
+  });
+  it("corners preserve every component ratio and Shift unlocks", () => {
+    for (const kind of [
+      "image",
+      "text",
+      "qr",
+      "barcode",
+      "line",
+      "rect",
+    ] as const) {
+      const e = { ...makeElement(kind), x: 20, y: 20, width: 40, height: 20 };
+      const locked = resizeElement(e, "br", 10, 0, 100, 100);
+      expect(locked.width / locked.height).toBe(2);
+      const unlocked = resizeElement(e, "br", 10, 0, 100, 100, true);
+      expect(unlocked.width).toBe(50);
+      expect(unlocked.height).toBe(20);
+    }
+  });
+  it("rotated side resizing keeps the opposite edge fixed", () => {
+    const e = {
+      ...makeElement("image"),
+      x: 20,
+      y: 20,
+      width: 40,
+      height: 20,
+      rotation: 90,
+    };
+    const r = resizeElement(e, "r", 0, 10, 100, 100);
+    expect(r.width).toBe(50);
+    expect(r.height).toBe(20);
+    expect(r.x).toBeCloseTo(15);
+    expect(r.y).toBeCloseTo(25);
   });
 });

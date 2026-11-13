@@ -1,3 +1,4 @@
+import type { ResizeHandle } from "./resize";
 import type { LabelElement } from "./model";
 import { clamp } from "./model";
 export type Alignment =
@@ -94,20 +95,21 @@ export function snapPlacement(
 // elements keep their aspect ratio while the dominant dimension lands on 1 mm.
 export function snapResizeDelta(
   e: LabelElement,
-  corner: "tl" | "tr" | "bl" | "br",
+  corner: ResizeHandle,
   dx: number,
   dy: number,
+  unlockAspect = false,
 ) {
   const angle = (e.rotation * Math.PI) / 180,
     c = Math.cos(angle),
     s = Math.sin(angle);
-  const sx = corner.endsWith("r") ? 1 : -1,
-    sy = corner.startsWith("b") ? 1 : -1;
+  const sx = corner.includes("r") ? 1 : corner.includes("l") ? -1 : 0,
+    sy = corner.includes("b") ? 1 : corner.includes("t") ? -1 : 0;
   const localX = c * dx + s * dy,
     localY = -s * dx + c * dy;
   let width = Math.max(1, e.width + sx * localX),
     height = Math.max(1, e.height + sy * localY);
-  if (["text", "image", "qr"].includes(e.kind)) {
+  if (corner.length === 2 && !unlockAspect) {
     const useWidth =
       Math.abs(width / e.width - 1) >= Math.abs(height / e.height - 1);
     const scale = useWidth
@@ -116,8 +118,8 @@ export function snapResizeDelta(
     width = e.width * scale;
     height = e.height * scale;
   } else {
-    width = Math.round(width);
-    height = Math.round(height);
+    width = sx ? Math.round(width) : e.width;
+    height = sy ? Math.round(height) : e.height;
   }
   const lx = (width - e.width) * sx,
     ly = (height - e.height) * sy;

@@ -30,9 +30,8 @@ batch printing. Blank IDs keep fixed content; existing `{{column}}` placeholders
 also work. Required columns are validated before sending any labels.
 
 Resize text proportionally, set RTL/LTR and text alignment, and align components
-to the label or another component. Drag the rotation handle (Shift for 15-degree
-steps); snapping shows alignment guides, with Alt to bypass. Image properties
-include crop percentages. QR properties include background and embedded center
+to the label or another component. Drag the rotation handle (Snap uses 15-degree steps); snapping shows alignment guides, with Alt to bypass. Image properties
+include a visual crop editor with eight handles. QR properties include background and embedded center
 logo options; barcode numbers and line/border thickness are configurable.
 
 Light, Dark and System appearance are included. Icons and PDF resources are
