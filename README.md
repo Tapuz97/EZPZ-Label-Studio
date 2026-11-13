@@ -3,7 +3,7 @@
   <h1>EZPZ Label Studio</h1>
   <p><strong>Your labels. Your printer. Your workspace.</strong></p>
   <p>Design thermal labels, prepare PDF artwork and print over Bluetooth.<br>Native Windows app and shared web editor. No application account required.</p>
-  <p><a href="https://tapuz97.github.io/EZPZ-Label-Studio/">Open the web app</a> · <a href="https://github.com/Tapuz97/EZPZ-Label-Studio/releases/latest">Windows downloads</a> · <a href="docs/microsoft-store.md">Microsoft Store guide</a> · <a href="mailto:gm@galmitrani.com">Support &amp; commercial licensing</a></p>
+  <p><a href="https://tapuz97.github.io/EZPZ-Label-Studio/">Open the web app</a> · <a href="https://github.com/Tapuz97/EZPZ-Label-Studio/releases/latest">Windows downloads</a> · <a href="mailto:gm@galmitrani.com">Support &amp; commercial licensing</a></p>
   <p>Windows · Bluetooth LE · PDF &amp; images · Barcodes &amp; QR · Local processing</p>
 </div>
 
@@ -64,8 +64,7 @@ test prints. Shared protocols across brands remain a possibility to verify.
 
 1. **Open Windows or [the web app](https://tapuz97.github.io/EZPZ-Label-Studio/).**
    Windows builds are in [Releases](https://github.com/Tapuz97/EZPZ-Label-Studio/releases)
-   for repository collaborators. Microsoft Store publication is in preparation.
-   The reserved Store product is **9PNR3K65GQFL** (publisher **Engineer101**).
+   as an installer or standalone executable.
 2. **Create a label or choose Print artwork.** Upload PDF, PNG, JPEG, WebP, BMP
    or GIF (first frame). Try the [sample template bundle](examples/templates/sample-templates.json)
    using Home → Saved templates → Import.
@@ -156,11 +155,11 @@ visitors, so no secrets belong in them.
 | `public/` | Offline PDF assets, app icon, public support/privacy pages |
 | `examples/templates/` | Editable sample template bundle |
 | `scripts/` | Asset generation, build collection, web and Store packaging |
-| `docs/` | Verification, cleanup history and Store submission guide |
+| `docs/` | Developer verification and cleanup records |
 
 Reference APKs and private investigation captures are outside this repository.
 Diagnostic tools live in `src-tauri/examples/`; `print_probe` never prints unless
-its explicit `--print` option is supplied. See the [Store guide](docs/microsoft-store.md),
+its explicit `--print` option is supplied. See the
 [verification records](docs/frontend-testing.md) and [cleanup report](docs/project-cleanup.md).
 
 ## Licence, attribution and commercial use
