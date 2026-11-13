@@ -13,7 +13,11 @@
   structure, not Store association, certification, installation or BLE behavior
   under a Store identity. The artifact is labelled `-validation.msix` and must
   not be submitted or installed as the final product.
-- Final MSIX creation needs the actual Partner Center product identity. A
+- The owner subsequently supplied the real Partner Center identity. MakeAppx
+  created `EZPZ-Label-Studio_1.0.0.0_x64.msix` for
+  `Engineer101.EZPZLabelStudio` / publisher `Engineer101`, Store ID 9PNR3K65GQFL.
+  The Store version starts at 1.0.0.0 separately from application 0.5.0, because
+  Microsoft requires a nonzero package major and revision 0. A
   signed/Store-flight test and WACK check remain required. No live printer was
   connected or printed during these checks. The existing EXE is unsigned and
   cannot be submitted as-is through the Store EXE/MSI route.

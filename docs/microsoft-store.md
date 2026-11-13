@@ -1,7 +1,8 @@
 # Publish EZPZ Label Studio to Microsoft Store
 
-This is a submission guide and packaging workflow, not a claim that the app is
-already published, certified, signed, or associated with a Microsoft account.
+This is a submission guide and packaging workflow. Store publication,
+certification, local signing and packaged-app installation testing are not yet
+complete.
 
 The product is now reserved: **Engineer101.EZPZLabelStudio**, publisher
 **Engineer101**, Store ID **9PNR3K65GQFL**. The public package identity supplied by
