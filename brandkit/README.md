@@ -1,6 +1,7 @@
 # EZPZ Label Studio brand kit
 
-App icons and promotional artwork for EZPZ Label Studio. All images are PNG files.
+App icons and promotional artwork for EZPZ Label Studio are PNG files.
+The official Microsoft Store badge is an SVG file.
 The folders preserve the organization used in the Store asset collection.
 
 ## App icons
@@ -12,6 +13,16 @@ The folders preserve the organization used in the Store asset collection.
 | [Store tile icon](logos/EZPZ-app-icon-300x300.png) | 300 × 300 |
 | [Large app icon](logos/EZPZ-app-icon-1024x1024.png) | 1024 × 1024 |
 | [Extra-large app icon](logos/EZPZ-app-icon-1080x1080.png) | 1080 × 1080 |
+
+## Microsoft Store badge
+
+[![Download EZPZ Label Studio from the Microsoft Store](badges/microsoft-store-en-us-dark.svg)](https://apps.microsoft.com/detail/9PNR3K65GQFL)
+
+The badge is stored locally for the repository README. Unmodified official artwork
+from [Microsoft](https://get.microsoft.com/images/en-us%20dark.svg), used following
+Microsoft's [HTML-only badge example](https://github.com/microsoft/app-store-badge#html-only).
+Microsoft retains its rights to the badge and trademarks; the project's licence
+does not apply to that artwork.
 
 ## Poster and box art
 

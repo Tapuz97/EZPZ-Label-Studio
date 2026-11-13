@@ -3,6 +3,7 @@
   <h1>EZPZ Label Studio</h1>
   <p><strong>Your labels. Your printer. Your workspace.</strong></p>
   <p>Design thermal labels, prepare PDF artwork and print over Bluetooth.<br>Native Windows app and shared web editor. No application account required.</p>
+  <p><a href="https://apps.microsoft.com/detail/9PNR3K65GQFL"><img src="brandkit/badges/microsoft-store-en-us-dark.svg" width="200" alt="Download EZPZ Label Studio from the Microsoft Store"></a></p>
   <p><a href="https://tapuz97.github.io/EZPZ-Label-Studio/">Open the web app</a> · <a href="https://github.com/Tapuz97/EZPZ-Label-Studio/releases/latest">Windows downloads</a> · <a href="mailto:gm@galmitrani.com">Support &amp; commercial licensing</a></p>
   <p>Windows · Bluetooth LE · PDF &amp; images · Barcodes &amp; QR · Local processing</p>
 </div>
