@@ -2,6 +2,7 @@ param(
   [string]$IdentityName,
   [string]$Publisher,
   [string]$PublisherDisplayName,
+  [string]$PackageVersion,
   [string]$MakeAppxPath,
   [switch]$ValidationOnly
 )
@@ -11,6 +12,11 @@ $identity = Get-Content -LiteralPath (Join-Path $projectRoot 'packaging/store-id
 if (-not $IdentityName) { $IdentityName = $identity.identityName }
 if (-not $Publisher) { $Publisher = $identity.publisher }
 if (-not $PublisherDisplayName) { $PublisherDisplayName = $identity.publisherDisplayName }
+if (-not $PackageVersion) { $PackageVersion = $identity.packageVersion }
+$parsedVersion = [Version]::Parse($PackageVersion)
+if ($PackageVersion -notmatch '^\d+\.\d+\.\d+\.0$' -or $parsedVersion.Major -lt 1 -or $parsedVersion.Major -gt 65535 -or $parsedVersion.Minor -gt 65535 -or $parsedVersion.Build -gt 65535) {
+  throw 'The Store package version needs four parts, a nonzero major, components <=65535, and revision 0.'
+}
 $config = Get-Content -LiteralPath (Join-Path $projectRoot 'src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json
 if ($IdentityName -notmatch '^[A-Za-z0-9.-]{3,50}$' -or $IdentityName -match 'PLACEHOLDER|CHANGEME' -or $Publisher -notmatch '^CN=') {
   throw 'Copy the exact Identity Name and Publisher (CN=...) from Partner Center > Product identity.'
@@ -47,7 +53,7 @@ try {
 $identityXml = [Security.SecurityElement]::Escape($IdentityName)
 $publisherXml = [Security.SecurityElement]::Escape($Publisher)
 $displayXml = [Security.SecurityElement]::Escape($PublisherDisplayName)
-$version = $config.version + '.0'
+$version = $PackageVersion
 $manifest = @"
 <?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities" IgnorableNamespaces="uap rescap">

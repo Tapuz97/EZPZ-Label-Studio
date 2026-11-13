@@ -46,6 +46,10 @@ versioned x64 MSIX under `output/microsoft-store` and validates it with the SDK'
 It does not install the package or alter Windows security settings.
 The script defaults to the reserved identity in `packaging/store-identity.json`;
 its identity parameters can be overridden explicitly for a different product.
+The Store package version is **1.0.0.0**, tracked separately from the application's
+0.5.0 version in that identity file. Microsoft requires a nonzero package major
+and reserves the final component as 0. Increment `packageVersion` before future
+Store submissions; `-PackageVersion` can override it explicitly.
 
 The package declares `runFullTrust` because this is a Tauri/Win32 desktop app,
 and Bluetooth capability for printer communication. Explain these capabilities
