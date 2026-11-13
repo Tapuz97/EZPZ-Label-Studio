@@ -1,0 +1,10 @@
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary
+*.ico binary
+*.bcmap binary
+*.pfb binary
+*.ttf binary
+*.wasm binary
+*.icc binary
+public/pdfjs/** -whitespace

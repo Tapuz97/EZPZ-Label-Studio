@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <meta name="theme-color" content="#184c8c" />
+    <link
+      rel="icon"
+      href="/app-icon.svg"
+    />
+    <title>EZPZ Label Studio</title>
+    <style>
+      html,body{margin:0;background:#f7f8fb;color:#17263c;font-family:"Segoe UI",sans-serif}
+      @media(prefers-color-scheme:dark){html:not([data-theme="light"]),html:not([data-theme="light"]) body{background:#141923;color:#e5ecf6}}
+      html[data-theme="dark"],html[data-theme="dark"] body{background:#141923;color:#e5ecf6}
+      .boot{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}.boot img{width:64px;height:64px}.boot p{margin:0;opacity:.7}
+    </style>
+    <script src="/startup.js"></script>
+  </head>
+  <body>
+    <div id="root"><div class="boot" role="status"><img src="/app-icon.svg" alt=""/><strong>EZPZ Label Studio</strong><p>Loading your workspace…</p></div></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

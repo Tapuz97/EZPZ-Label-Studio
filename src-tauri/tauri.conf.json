@@ -1,0 +1,58 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "EZPZ Label Studio",
+  "version": "0.5.0",
+  "identifier": "com.local.blelabelstudio",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "EZPZ Label Studio",
+        "width": 1440,
+        "height": 960,
+        "minWidth": 1000,
+        "minHeight": 560,
+        "backgroundColor": "#141923",
+        "decorations": false,
+        "maximized": false,
+        "center": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost; worker-src 'self' blob:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "publisher": "Gal Mitrani",
+    "licenseFile": "../LICENSE",
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "shortDescription": "Offline Bluetooth label editor",
+    "category": "Utility",
+    "resources": [
+      "../THIRD_PARTY_NOTICES.txt",
+      "../LICENSE",
+      "../NOTICE",
+      "../COMMERCIAL.md"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller"
+      },
+      "nsis": {
+        "compression": "zlib"
+      }
+    }
+  }
+}

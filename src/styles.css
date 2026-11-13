@@ -1,0 +1,91 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./layout.css" layer(components);
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+:root {
+  font-size: 16px;
+  --radius: 0.625rem;
+  --background: #f7f8fb;
+  --foreground: #17263c;
+  --card: #fff;
+  --card-foreground: #17263c;
+  --popover: #fff;
+  --popover-foreground: #17263c;
+  --primary: #2563b9;
+  --primary-foreground: #fff;
+  --secondary: #e9f0fa;
+  --secondary-foreground: #1e4378;
+  --muted: #eef1f6;
+  --muted-foreground: #627089;
+  --accent: #e2edfc;
+  --accent-foreground: #174b93;
+  --destructive: #bd3434;
+  --border: #dce2ec;
+  --input: #cbd5e4;
+  --ring: #3b82d6;
+}
+:root[data-theme="dark"] {
+  --background: #141923;
+  --foreground: #e5ecf6;
+  --card: #1a2130;
+  --card-foreground: #e5ecf6;
+  --popover: #1d2738;
+  --popover-foreground: #e5ecf6;
+  --primary: #78adf2;
+  --primary-foreground: #102440;
+  --secondary: #23314a;
+  --secondary-foreground: #d4e4fc;
+  --muted: #202a3a;
+  --muted-foreground: #a0afc5;
+  --accent: #293e5f;
+  --accent-foreground: #e0ecff;
+  --destructive: #f08b8b;
+  --border: #34425a;
+  --input: #41506a;
+  --ring: #78adf2;
+}
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Segoe UI", Arial, sans-serif;
+  }
+  h1 {
+    @apply text-3xl font-semibold tracking-tight;
+  }
+  h2 {
+    @apply text-xl font-semibold tracking-tight;
+  }
+  h3 {
+    @apply text-base font-semibold;
+  }
+  p {
+    @apply leading-relaxed;
+  }
+}
