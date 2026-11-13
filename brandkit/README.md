@@ -7,8 +7,11 @@ The folders preserve the organization used in the Store asset collection.
 
 | Asset | Dimensions |
 | --- | --- |
+| [Small app icon](logos/EZPZ-app-icon-71x71.png) | 71 × 71 |
+| [Medium app icon](logos/EZPZ-app-icon-150x150.png) | 150 × 150 |
 | [Store tile icon](logos/EZPZ-app-icon-300x300.png) | 300 × 300 |
 | [Large app icon](logos/EZPZ-app-icon-1024x1024.png) | 1024 × 1024 |
+| [Extra-large app icon](logos/EZPZ-app-icon-1080x1080.png) | 1080 × 1080 |
 
 ## Poster and box art
 
