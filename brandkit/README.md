@@ -26,9 +26,9 @@ GitHub READMEs without JavaScript. Microsoft retains its rights to the badge and
 trademarks; the project's licence does not apply to that artwork.
 
 The web app's Home footer uses Microsoft's interactive `ms-store-badge` component
-with Direct launch, automatic theme, Large size, American English, and animation
-enabled. Its module and artwork are loaded from Microsoft only in the web app;
-the installed app remains independent of the badge service.
+with Direct launch, the website's selected Light/Dark theme, Large size, American
+English, and animation enabled. Its module and artwork are loaded from Microsoft
+only in the web app; the installed app remains independent of the badge service.
 
 ## Poster and box art
 
