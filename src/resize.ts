@@ -1,7 +1,7 @@
 import type { LabelElement } from "./model";
 import { clamp } from "./model";
 
-export type ResizeCorner = "tl" | "tr" | "bl" | "br";
+type ResizeCorner = "tl" | "tr" | "bl" | "br";
 export type ResizeHandle = ResizeCorner | "t" | "b" | "l" | "r";
 export function resizeElement(
   element: LabelElement,

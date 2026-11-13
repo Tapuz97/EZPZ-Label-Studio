@@ -1,3 +1,4 @@
+import { SocialGithubDuotoneIcon } from "@thesvg/ui-react";
 import { CreatorToolbar } from "./CreatorToolbar";
 import { FieldGroup } from "@/components/ui/field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -1202,6 +1203,7 @@ export default function App() {
               ? "Sending…"
               : `Print${copies > 1 ? ` ${copies} copies` : ""}`}
           </Button>
+          {!native && <Button variant="ghost" asChild><a href="https://github.com/Tapuz97/EZPZ-Label-Studio" target="_blank" rel="noopener noreferrer" aria-label="EZPZ Label Studio on GitHub"><SocialGithubDuotoneIcon /><span>EZPZ Label Studio</span></a></Button>}
         </div>
       </header>
       {screen === "home" && (error || notice) && (

@@ -1,53 +1,36 @@
-import { FormSelect } from "@/components/form-select";
 import { useEffect, useState } from "react";
-import {
-  MonitorDuotoneIcon,
-  SunDuotoneIcon,
-  MoonDuotoneIcon,
-} from "@thesvg/ui-react";
-type Theme = "system" | "light" | "dark";
+import { SunDuotoneIcon, MoonDuotoneIcon } from "@thesvg/ui-react";
+import { Button } from "./components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
+
+type Appearance = "light" | "dark";
 export function ThemeControl() {
-  const [theme, setTheme] = useState<Theme>(() => {
+  const [preference, setPreference] = useState<Appearance | null>(() => {
     try {
       const value = localStorage.getItem("label-studio.theme.v1");
-      return value === "light" || value === "dark" ? value : "system";
-    } catch {
-      return "system";
-    }
+      return value === "light" || value === "dark" ? value : null;
+    } catch { return null; }
   });
+  const [systemDark, setSystemDark] = useState(() => matchMedia("(prefers-color-scheme: dark)").matches);
+  const theme = preference ?? (systemDark ? "dark" : "light");
   useEffect(() => {
     const query = matchMedia("(prefers-color-scheme: dark)");
-    const apply = () => {
-      document.documentElement.dataset.theme =
-        theme === "system" ? (query.matches ? "dark" : "light") : theme;
-      document.documentElement.style.colorScheme =
-        document.documentElement.dataset.theme;
-    };
-    apply();
-    query.addEventListener("change", apply);
-    try {
-      localStorage.setItem("label-studio.theme.v1", theme);
-    } catch {}
-    return () => query.removeEventListener("change", apply);
-  }, [theme]);
-  const Icon =
-    theme === "system"
-      ? MonitorDuotoneIcon
-      : theme === "dark"
-        ? MoonDuotoneIcon
-        : SunDuotoneIcon;
-  return (
-    <label className="theme-control">
-      <Icon size={17} />
-      <FormSelect
-        aria-label="Appearance"
-        value={theme}
-        onChange={(e) => setTheme(e.target.value as Theme)}
-      >
-        <option value="system">System</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-      </FormSelect>
-    </label>
-  );
+    const changed = () => setSystemDark(query.matches);
+    changed();
+    query.addEventListener("change", changed);
+    return () => query.removeEventListener("change", changed);
+  }, []);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    if (preference) {
+      try { localStorage.setItem("label-studio.theme.v1", preference); } catch { /* Appearance still works when storage is unavailable. */ }
+    }
+  }, [theme, preference]);
+  const next = theme === "dark" ? "light" : "dark";
+  const label = `Switch to ${next} mode`;
+  const Icon = next === "dark" ? MoonDuotoneIcon : SunDuotoneIcon;
+  return <TooltipProvider delayDuration={250}><Tooltip><TooltipTrigger asChild>
+    <Button variant="ghost" size="icon" aria-label={label} onClick={() => setPreference(next)}><Icon /></Button>
+  </TooltipTrigger><TooltipContent side="bottom" sideOffset={6}>{label}</TooltipContent></Tooltip></TooltipProvider>;
 }

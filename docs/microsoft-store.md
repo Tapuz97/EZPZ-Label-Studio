@@ -47,8 +47,8 @@ versioned x64 MSIX under `output/microsoft-store` and validates it with the SDK'
 It does not install the package or alter Windows security settings.
 The script defaults to the reserved identity in `packaging/store-identity.json`;
 its identity parameters can be overridden explicitly for a different product.
-The Store package version is **1.1.1.0**, tracked separately from the application's
-0.6.1 version in that identity file. Microsoft requires a nonzero package major
+The Store package version is **1.1.2.0**, tracked separately from the application's
+0.6.2 version in that identity file. Microsoft requires a nonzero package major
 and reserves the final component as 0. Increment `packageVersion` before future
 Store submissions; `-PackageVersion` can override it explicitly.
 

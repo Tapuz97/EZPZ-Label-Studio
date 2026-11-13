@@ -20,7 +20,7 @@ printer.
 Create text, barcodes and QR codes; resize and rotate artwork; import template
 bundles; and use CSV data for repeated labels. Automatic artwork orientation,
 print scale, inset margins, preview zoom and middle-button panning help prepare
-the layout before printing. Light, Dark and System appearance are included.
+the layout before printing. Appearance follows the system by default, with a sun/moon toggle for a remembered preference.
 
 Files and templates are processed locally. No application account or cloud
 document service is required. The Windows installer bundles the application
@@ -45,7 +45,7 @@ the app does not itself grant a commercial licence.
 - Local template library with JSON import/export, PNG export and CSV data.
 - Monochrome preview, artwork sizing, zoom and middle-button pan.
 - Supported BLE printer selection, transfer progress and cancellation.
-- Blue theme with System, Light and Dark modes.
+- Blue theme with system-default appearance and a Light/Dark icon toggle.
 
 ## Certification notes draft
 

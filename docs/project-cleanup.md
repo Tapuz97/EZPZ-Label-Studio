@@ -1,5 +1,25 @@
 # Project cleanup — 2026-11-13
 
+## Final release source audit
+
+- Resolved the TypeScript import graph from `src/main.tsx`, including dynamic
+  imports and path aliases: all 55 application modules are reachable. There are
+  no abandoned source/component files to remove.
+- Checked application exports against TypeScript import symbols. Removed three
+  unused public type exports (`ResizeCorner`, `SavedTemplate`, `TemplateLibrary`)
+  while retaining their internal definitions. Official shadcn component APIs
+  remain intact.
+- Reviewed direct dependency references, native modules/examples, build scripts,
+  static resources and documentation. Dependencies have runtime/build/type uses;
+  Lucide is required by the creator toolbar. Diagnostic examples and their
+  historical scheduler comparison remain reproducible tools, not abandoned app
+  code. Offline PDF font, CMap and codec assets support runtime-selected PDFs.
+- Preserved release artifacts, build caches, installed tooling, user templates,
+  research archives and historical verification records. No source files or
+  dependencies were removed without evidence that they were unused.
+- TypeScript compilation passed after the export cleanup. The removed exports
+  have no emitted runtime code or visual effect.
+
 ## Full source review — version 0.4.2
 
 - Reviewed the React/TypeScript module graph, Rust modules and examples, build
@@ -65,3 +85,5 @@ The archive's `_archive-integrity.json`, `_archived-support-files.json`, and
 `_cleanup-recycle-record.json` contain detailed records. Future builds may
 recreate ignored build information and generated schemas. `.gitignore` covers
 those files, browser-session caches, temporary files, and generated diagnostics.
+
+Generated cleanup: archived ten superseded release-copy and MSIX staging directories outside the codebase under `../../EZPZ-Label-Research/cleanup-0.6.2-generated`. Direct deletion was rejected by automatic review; the archive preserves the files. Removed the obsolete theme-selector CSS.

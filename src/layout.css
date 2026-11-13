@@ -746,19 +746,6 @@ code {
   background: var(--secondary);
   color: var(--primary);
 }
-.theme-control {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--muted-foreground);
-}
-.theme-control select {
-  width: 87px;
-  height: 33px;
-  border: none;
-  background: transparent;
-  padding: 0 4px;
-}
 .home-screen {
   overflow: auto;
   flex: 1;
@@ -936,10 +923,7 @@ canvas {
     padding-inline: 5px;
     font-size: 12px;
   }
-  .theme-control select {
-    width: 73px;
-  }
-  .import-body {
+    .import-body {
     grid-template-columns: 280px 1fr;
   }
 }

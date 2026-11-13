@@ -1,7 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { parseDocument, type LabelDocument } from "./model";
-export type SavedTemplate = { id: string; document: LabelDocument };
-export type TemplateLibrary = { templates: SavedTemplate[]; location: string; fallback: boolean };
+type SavedTemplate = { id: string; document: LabelDocument };
+type TemplateLibrary = { templates: SavedTemplate[]; location: string; fallback: boolean };
 const libraryKey = "label-studio.library.v1";
 function validateLibrary(value: unknown): SavedTemplate[] {
   if (!Array.isArray(value) || value.length > 30) throw Error("Your existing template library could not be read. Nothing was changed.");

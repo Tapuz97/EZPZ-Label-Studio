@@ -34,7 +34,7 @@ to the label or another component. Drag the rotation handle (Snap uses 15-degree
 include a visual crop editor with eight handles. QR properties include background and embedded center
 logo options; barcode numbers and line/border thickness are configurable.
 
-Light, Dark and System appearance are included. Icons and PDF resources are
+Appearance follows your system by default. Use the sun/moon button to choose and remember Light or Dark. Icons and PDF resources are
 bundled locally; the application does not fetch icon fonts or artwork from a CDN.
 
 ![Shared label editor in EZPZ Label Studio](docs/images/editor-light.png)

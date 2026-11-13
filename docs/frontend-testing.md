@@ -1,5 +1,16 @@
 # Frontend validation
 
+## Version 0.6.2 — header appearance and repository link
+
+- Actual Chromium checks at 1440x960 and 1024x720 passed system-default dark
+  appearance, live OS theme changes before choosing a preference, icon toggling
+  and persistence after reload. The old Appearance selector is absent.
+- The web header shows the GitHub icon with the project name and links directly
+  to the repository in a separate tab. The installed app omits this web link.
+- No page errors or horizontal document overflow were observed in the editor.
+- Source cleanup retains all reachable application modules and offline resources;
+  obsolete selector styles and unnecessary public type exports were removed.
+
 ## Version 0.6.1 — tooltips and proportional handles
 
 - 75 frontend tests pass. Crop geometry covers every edge, proportional corner

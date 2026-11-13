@@ -1,6 +1,6 @@
 [package]
 name = "ezpz-label-studio"
-version = "0.6.1"
+version = "0.6.2"
 license = "PolyForm-Noncommercial-1.0.0"
 description = "Offline Windows Bluetooth label editor"
 edition = "2021"
