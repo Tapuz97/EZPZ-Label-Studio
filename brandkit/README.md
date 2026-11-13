@@ -1,6 +1,7 @@
 # EZPZ Label Studio brand kit
 
-App icons and promotional artwork for EZPZ Label Studio are PNG files.
+App icons and Store artwork for EZPZ Label Studio are PNG files. The social preview
+is a JPEG optimized for GitHub's upload limit.
 The folders preserve the organization used in the Store asset collection.
 
 ## App icons
@@ -40,6 +41,7 @@ trademarks; the project's licence does not apply to that artwork.
 | [HD super hero](promotional-art/EZPZ-super-hero-1920x1080.png) | 1920 × 1080 | No text |
 | [Branded key art](promotional-art/EZPZ-branded-key-art-584x800.png) | 584 × 800 | App title and branding bar |
 | [Titled hero](promotional-art/EZPZ-titled-hero-1920x1080.png) | 1920 × 1080 | App title |
+| [GitHub social preview](promotional-art/EZPZ-social-preview-1280x640.jpg) | 1280 × 640 | App title; under 1 MB; composed using the repository preview template |
 | [Promotional square](promotional-art/EZPZ-promotional-square-1080x1080.png) | 1080 × 1080 | No text |
 
 The promotional illustrations were created with imagegen using the project's
