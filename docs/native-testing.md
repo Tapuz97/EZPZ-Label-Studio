@@ -6,8 +6,10 @@
   read-only installation fallback, permission changes and corrupt-file preservation.
 - Windows NSIS and web builds pass. Store package version is 1.1.0.0.
 - An isolated native release confirmed the registered storage command selects
-  its executable's templates directory. Native save/reload UI checks are recorded
-  below when completed; filesystem fallback cases are exercised by native tests.
+  its executable's templates directory. Actual native UI saved a component ID,
+  read it back from templates/library.json, reloaded the application and restored
+  the saved library. Wheel zoom worked in WebView2; title-bar close succeeded.
+  Filesystem fallback cases are exercised by native tests.
 - Shared frontend checks cover CSV, editing, cropping, snapping, PDF preparation
   and zoom as detailed in frontend-testing.md. No new physical labels were sent
   in this feature pass. Existing DB403 output confirmation is from 0.5.1.
