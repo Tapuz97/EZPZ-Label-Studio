@@ -1,133 +1,170 @@
 <div align="center">
-  <img src="public/app-icon.svg" width="96" height="96" alt="EZPZ Label Studio printer icon">
+  <img src="public/app-icon.svg" width="72" height="72" alt="EZPZ Label Studio printer icon">
   <h1>EZPZ Label Studio</h1>
-  <p><strong>Your labels. Your printer. Your workspace.</strong></p>
-  <p>Design thermal labels, prepare PDF artwork and print over Bluetooth.<br>Native Windows app and shared web editor. No application account required.</p>
+  <p><strong>Design. Prepare. Print.</strong></p>
+  <p>A desktop workspace for your Bluetooth label printer.<br>Create a design, prepare your artwork, or turn a CSV into a batch of labels.</p>
   <p><a href="https://apps.microsoft.com/detail/9PNR3K65GQFL"><img src="brandkit/badges/microsoft-store-en-us-dark.svg" width="200" alt="Download EZPZ Label Studio from the Microsoft Store"></a></p>
-  <p><a href="https://tapuz97.github.io/EZPZ-Label-Studio/">Open the web app</a> · <a href="https://github.com/Tapuz97/EZPZ-Label-Studio/releases/latest">Windows downloads</a> · <a href="mailto:gm@galmitrani.com">Support &amp; commercial licensing</a></p>
-  <p>Windows · Bluetooth LE · PDF &amp; images · Barcodes &amp; QR · Local processing</p>
+  <p><a href="https://tapuz97.github.io/EZPZ-Label-Studio/"><strong>Open the web editor</strong></a> &nbsp; · &nbsp; <a href="https://github.com/Tapuz97/EZPZ-Label-Studio/releases/latest">Windows downloads</a> &nbsp; · &nbsp; <a href="examples/templates/sample-templates.json">Sample templates</a></p>
+  <p>Native Windows app &nbsp; · &nbsp; Shared web editor &nbsp; · &nbsp; Local file processing</p>
 </div>
 
-![EZPZ Label Studio Home in dark mode](docs/images/home-dark.png)
+<p align="center">
+  <img src="brandkit/promotional-art/EZPZ-super-hero-1920x1080.png" width="1000" alt="White barcode, shipping, and QR label artwork on a blue design grid">
+</p>
 
-## From artwork to label
+<p align="center"><a href="#start-printing">Get started</a> &nbsp; · &nbsp; <a href="#inside-the-studio">Screenshots</a> &nbsp; · &nbsp; <a href="#printer-compatibility">Printer compatibility</a> &nbsp; · &nbsp; <a href="#develop-and-build">Development</a> &nbsp; · &nbsp; <a href="#licence-and-support">Licence &amp; support</a></p>
 
-Start with a blank label, import a file, or reuse a template. Preview the final
-monochrome print, adjust the stock and artwork, then send it to your printer.
-The Windows app bundles its assets locally and runs without an internet
-connection. The web edition loads from GitHub Pages and processes your artwork
-on your own device.
+## A small studio for everyday labels
 
-| Design | Prepare | Print & reuse |
+Parts bins, equipment tags, parcel artwork, and repeat jobs. Start with a blank
+canvas, upload a file, or pick up a saved template. Review the monochrome output
+before sending it to your printer.
+
+| Design your label | Prepare your artwork | Print and reuse |
 | --- | --- | --- |
-| Text, images, lines and borders | PDF page selection and immediate previews | Supported BLE printer selection |
-| Barcodes and QR codes | Automatic Vertical/Horizontal orientation | Progress and cancellation |
-| Drag, resize and rotate | Stock presets, custom sizes, margins and scale | Local templates and JSON bundles |
-| Undo/redo and layer controls | Zoom and middle-button panning | PNG export and CSV-driven labels |
+| Text, images, barcodes, and QR codes | PDF pages and common image formats | Compatible Bluetooth LE printers |
+| Alignment, rotation, and grid snapping | Visual cropping, scaling, and orientation | CSV batches with named component fields |
+| RTL/LTR text and text alignment | Stock presets and custom dimensions | Local templates, bulk import, and export |
+| QR backgrounds and center logos | Zoom, pan, and monochrome previews | Copies, print progress, and cancellation |
 
-Assign a **Component ID** to text, QR and barcode elements to bind them to CSV
-columns. In Data, export a sample CSV, fill its rows, then import it and choose
-batch printing. Blank IDs keep fixed content; existing `{{column}}` placeholders
-also work. Required columns are validated before sending any labels.
+**Your files stay local.** PDF, image, and CSV processing happens on your device.
+The Windows editor bundles its assets and works without an internet connection
+following installation. No application account is required. Appearance follows
+your system until you choose Light or Dark with the sun/moon button.
 
-Resize text proportionally, set RTL/LTR and text alignment, and align components
-to the label or another component. Drag the rotation handle (Snap uses 15-degree steps); snapping shows alignment guides, with Alt to bypass. Image properties
-include a visual crop editor with eight handles. QR properties include background and embedded center
-logo options; barcode numbers and line/border thickness are configurable.
+## Inside the studio
 
-Appearance follows your system by default. Use the sun/moon button to choose and remember Light or Dark. Icons and PDF resources are
-bundled locally; the application does not fetch icon fonts or artwork from a CDN.
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/images/editor-dark.png"><img src="docs/images/editor-dark.png" width="520" alt="Dark label editor with a workshop equipment label, QR code, and barcode"></a>
+      <p><strong>Build your layout</strong><br>Arrange components and inspect the final print preview.</p>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/images/artwork-upload.png"><img src="docs/images/artwork-upload.png" width="520" alt="PDF upload dialog with page selection, orientation, and a sample shipping label preview"></a>
+      <p><strong>Bring your artwork</strong><br>Prepare PDF pages and images before opening the workspace.</p>
+    </td>
+  </tr>
+</table>
 
-![Shared label editor in EZPZ Label Studio](docs/images/editor-light.png)
+<p align="center"><sub>Click a screenshot to view it at full size.</sub></p>
+
+## Start printing
+
+1. **Choose your workspace.** Use the [Microsoft Store app](https://apps.microsoft.com/detail/9PNR3K65GQFL), a [Windows installer or standalone EXE](https://github.com/Tapuz97/EZPZ-Label-Studio/releases/latest), or the [web editor](https://tapuz97.github.io/EZPZ-Label-Studio/).
+2. **Create or import.** Start a label, upload a PDF or image, or import the [sample template bundle](examples/templates/sample-templates.json) from Home → Saved templates → Import.
+3. **Set your stock.** Choose the size loaded in your printer. Fit artwork without stretching, or match the label to the artwork. Adjust orientation, scale, and margins as needed.
+4. **Check the preview.** Scroll to zoom and hold the middle mouse button to pan. Zoom changes your view; use the component handles or dimensions to change the printed size.
+5. **Connect and print.** Turn on your printer, disconnect it from your phone, then choose Connect a printer. Check one physical label before running a batch.
+
+### One template, many labels
+
+Give text, QR, or barcode components a **Component ID** matching a CSV column.
+For example, `name` can populate a text component while `item` populates a barcode.
+Export a sample CSV from Data, fill in the rows, import it, and choose batch printing.
+
+Blank IDs keep fixed content. Existing `{{column}}` placeholders also work, and
+required columns are validated before any labels are sent.
+
+<details>
+<summary><strong>Editor controls and artwork options</strong></summary>
+
+- Resize text proportionally and set its direction and alignment.
+- Align components to the label or one another. Drag a rotation handle to rotate;
+  Snap uses 15-degree steps. Snapping shows alignment guides; hold Alt to bypass it.
+- Crop images with corner and side handles. Corners preserve proportions by
+  default; hold Shift to adjust them freely.
+- Show or hide QR backgrounds and uploaded center logos, toggle barcode numbers,
+  and adjust line and border thickness.
+- Import PDF, PNG, JPEG, WebP, BMP, or GIF (first frame). Export designs as PNG or
+  reusable label files.
+
+</details>
 
 ## Printer compatibility
 
 **Designed to work with most Bluetooth LE printers compatible with the EZlabel
-app, but further testing is required across models.** This is the intended
-compatibility range, not a claim that every such printer works. EZPZ is an
-independent project, unaffiliated with the reference app or printer manufacturers.
+app, with further testing required across models.** EZPZ is an independent
+project, unaffiliated with the reference app or printer manufacturers.
 
-| Printer / family | Current evidence |
+| Printer or family | Current evidence |
 | --- | --- |
-| **BPXX DB403** | Windows and Chrome/Windows 11 connection and physical 60 × 90 mm, 203 DPI printing verified; output confirmed by the owner |
-| Other EZlabel-compatible BLE printers | Supported service/profile and format paths implemented; each model still needs physical testing |
-| Web Bluetooth printing | DB403 physically verified on Chrome / Windows 11; other browser/printer combinations need testing |
+| **BPXX DB403** | Physical 60 × 90 mm, 203 DPI printing verified on Windows and Chrome / Windows 11; output confirmed by the owner |
+| Other EZlabel-compatible BLE printers | Service/profile and print-format paths implemented; each model still needs physical testing |
 | Niimbot, iPrint, Labelife, Nelko, Jadens, Pixmate, and other families | Future research candidates; **not currently claimed as supported** |
 
-A Bluetooth name or connection does not prove print compatibility. A printer
-needs a supported BLE service and print format. Classic Bluetooth SPP/RFCOMM
-is not implemented. DPI, print width and loaded stock are not invented when the
-printer does not report them; choose the settings for your printer and roll.
-Future support will use captured communication, documented profiles and physical
-test prints. Shared protocols across brands remain a possibility to verify.
+A Bluetooth name or successful connection does not prove print compatibility.
+Classic Bluetooth SPP/RFCOMM is not implemented. When a printer does not report
+its DPI, print width, or loaded stock, choose the correct settings manually.
 
-## Start printing
+## Windows and web
 
-1. **Open Windows or [the web app](https://tapuz97.github.io/EZPZ-Label-Studio/).**
-   Windows builds are in [Releases](https://github.com/Tapuz97/EZPZ-Label-Studio/releases)
-   as an installer or standalone executable.
-2. **Create a label or choose Print artwork.** Upload PDF, PNG, JPEG, WebP, BMP
-   or GIF (first frame). Try the [sample template bundle](examples/templates/sample-templates.json)
-   using Home → Saved templates → Import.
-3. **Choose the loaded stock size.** Select a preset or custom dimensions. Fit
-   without stretching, or match the label to the artwork. Orientation follows
-   the uploaded file and can be changed manually.
-4. **Review the monochrome preview.** Resize artwork using its handles or
-   dimensions. Set scale/margins during import. Zoom affects only the view;
-   hold the middle mouse button and drag to pan.
-5. **Connect and print.** Turn on the printer, disconnect it from your phone,
-   choose Connect a printer and select it. Start with one label and check the
-   physical result before running a batch.
-
-### Windows and web
-
-| | Windows | Web |
+| | Windows app | Web editor |
 | --- | --- | --- |
-| Editor, uploads and templates | Yes | Yes |
-| Bluetooth selection | Native Windows scan | Browser-controlled device picker |
-| Printing | Native BLE | Experimental Web Bluetooth on supported Chrome/Edge devices over HTTPS |
-| Unsupported browsers | — | Editing/export remain available; use Windows for Bluetooth |
-| Template storage | Installation `templates` directory, with persistent user-data fallback | This website's browser storage |
-| Internet | Not required after installation | Required to load the hosted app; no offline web-install guarantee |
+| Design, uploads, and templates | Included | Included |
+| Printer selection | Native Windows scan | Browser-controlled device picker |
+| Bluetooth printing | Native BLE | Experimental Web Bluetooth on supported Chrome/Edge devices over HTTPS |
+| Template storage | Writable application `templates` directory, with persistent user-data fallback | This website's browser storage |
+| Internet access | Not required after installation | Required to load the hosted app; offline installation is not guaranteed |
 
-Saved Windows templates are stored in `templates/library.json` beside the application
-when that directory is writable. Protected installations use the application's
-persistent user-data `templates` directory instead. The Home and Saved panels show
-the actual directory. Existing Windows app-profile templates migrate on first use;
-exports remain portable JSON files. Select multiple JSON files or bundles to import
-them together; the entire selection is validated before saving.
+The Windows app requires Microsoft Edge WebView2 Runtime. The EXE installer
+includes the offline runtime installer; the standalone app uses the runtime
+already on Windows. Bluetooth printing needs a compatible BLE printer and
+Windows Bluetooth support.
 
-The web edition needs permission after your click. It uses a browser-reported
-payload limit when available. For DB403 on its verified service, a non-printing
-model inquiry checks whether a complete 244-byte packet arrives; otherwise it
-keeps 20-byte chunks. Safari and Firefox are not Bluetooth-printing targets. See
-[browser/security limitations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API).
-Windows and browser templates are separate; export/import JSON to move designs.
+Browser support varies. DB403 printing has been physically verified in Chrome on
+Windows 11. Safari and Firefox are not Bluetooth-printing targets; editing and
+export remain available. See [Web Bluetooth browser support](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API).
 
-## Privacy and practical limits
+<details>
+<summary><strong>Template storage and moving designs between platforms</strong></summary>
 
-PDF/image/CSV processing is local. No application account, advertising, analytics
-or document-upload service is used. GitHub Pages handles ordinary website
-requests under its privacy terms. Read the [privacy policy](https://tapuz97.github.io/EZPZ-Label-Studio/privacy.html).
+Windows saves templates in `templates/library.json` beside the application when
+that directory is writable. Protected installations use the application's
+persistent user-data `templates` directory instead. Home and Saved show the
+actual location. Existing Windows app-profile templates migrate on first use.
+
+Select multiple JSON files or bundles to import them together; the entire
+selection is validated before saving. Windows and browser libraries are
+separate. Use template export/import to move designs between them or back them up.
+
+</details>
+
+<details>
+<summary><strong>Local processing, transfer behavior, and practical limits</strong></summary>
+
+No application account, advertising, analytics, or document-upload service is
+used. Icons and PDF resources are bundled locally. GitHub Pages handles ordinary
+website requests under its own privacy terms. Read the [privacy policy](https://tapuz97.github.io/EZPZ-Label-Studio/privacy.html).
 
 “Sent” means Bluetooth writes completed, not that a sensor confirmed paper
 output. Failed transfers are never automatically retried. Cancel stops remaining
 writes; buffered data may still print. After an interrupted bitmap transfer,
 power-cycle the printer before retrying.
 
-Artwork limits: 30 MB per file, 50 prepared pages/images, 40 million decoded
-pixels per preparation, 8 million pixels per print raster, 1 MB per encoded
-transfer and 100 labels including copies per batch. Paper/head limits apply.
-Camera/OCR, firmware updates and automatic stock calibration are not implemented.
+The browser uses its reported payload limit when available. For DB403 on its
+verified service, a non-printing model inquiry checks whether a complete
+244-byte packet arrives; otherwise it keeps 20-byte chunks. Future printer
+support will use captured communication, documented profiles, and physical tests.
+
+Artwork limits: 30 MB per file, 50 prepared pages/images, 40 million decoded pixels
+per preparation, 8 million pixels per print raster, 1 MB per encoded transfer,
+and 100 labels including copies per batch. Paper and print-head limits also apply.
+Camera/OCR, firmware updates, and automatic stock calibration are not implemented.
+
+</details>
 
 ## Develop and build
 
+<details>
+<summary><strong>Run locally, build Windows, and find your way around the source</strong></summary>
+
 Node.js 24 is used in CI. Windows development additionally needs Rust MSVC,
-Visual Studio C++ Build Tools and WebView2.
+Visual Studio C++ Build Tools, and WebView2.
 
 ```sh
 npm ci
-npm run dev          # browser development at http://127.0.0.1:1420
+npm run dev          # Browser development at http://127.0.0.1:1420
 npm run build:web    # GitHub Pages output in dist-web/
 npm test
 ```
@@ -139,40 +176,45 @@ node scripts/collect-windows-build.mjs
 cargo test --release --manifest-path src-tauri/Cargo.toml --lib
 ```
 
-The collector places the portable EXE, offline installer and checksum receipt in
-`output/windows`. The installer includes offline WebView2; the portable uses the
-runtime already on Windows. Packaged apps need no Node, Rust or development server.
+The collector places the standalone EXE, offline installer, and checksum receipt
+in `output/windows`. Packaged apps need no Node, Rust, or development server.
 
-The Pages workflow tests and deploys `main` to
-<https://tapuz97.github.io/EZPZ-Label-Studio/>. `VITE_BASE_PATH` controls web asset
-paths (default `/EZPZ-Label-Studio/`). The source repo is private; the published
-website is public. Compiled browser code and static assets are downloadable by
-visitors, so no secrets belong in them.
+The Pages workflow tests and deploys `main` to the [web editor](https://tapuz97.github.io/EZPZ-Label-Studio/).
+`VITE_BASE_PATH` controls web asset paths (default `/EZPZ-Label-Studio/`). Published
+browser code and static assets are downloadable, so no secrets belong in them.
 
 | Source | Responsibility |
 | --- | --- |
-| `src/` | Shared React editor, import/rendering and browser printer support |
-| `src-tauri/src/` | Windows BLE, capabilities, raster encoding and shutdown |
+| `src/` | Shared React editor, import/rendering, and browser printer support |
+| `src-tauri/src/` | Windows BLE, capabilities, raster encoding, and shutdown |
 | `public/` | Offline PDF assets, app icon, public support/privacy pages |
 | `examples/templates/` | Editable sample template bundle |
+| `brandkit/` | [App icons, promotional artwork, and Store badge](brandkit/README.md) |
 | `scripts/` | Asset generation, build collection, web and Store packaging |
 | `docs/` | Developer verification and cleanup records |
 
 Reference APKs and private investigation captures are outside this repository.
 Diagnostic tools live in `src-tauri/examples/`; `print_probe` never prints unless
-its explicit `--print` option is supplied. See the
-[verification records](docs/frontend-testing.md) and [cleanup report](docs/project-cleanup.md).
+its explicit `--print` option is supplied. See the [verification records](docs/frontend-testing.md),
+[transport notes](docs/transport-performance.md), and [cleanup report](docs/project-cleanup.md).
 
-## Licence, attribution and commercial use
+</details>
 
-**Copyright © 2026 Gal Mitrani.** Original project code uses
+## Licence and support
+
+**Copyright © 2026 Gal Mitrani.** Original project code is available under
 [PolyForm Noncommercial 1.0.0](LICENSE). Retain the attribution in [NOTICE](NOTICE)
-when distributing the software or work based on it. Noncommercial forks are
-allowed; contributing improvements to the original project is encouraged.
+when distributing the software or works based on it. Noncommercial forks are
+allowed; contributing improvements to this project is encouraged.
 
 Commercial use outside the licence's permitted purposes requires a **separate
-paid written agreement** with Gal Mitrani. Contact **[gm@galmitrani.com](mailto:gm@galmitrani.com)**.
-See [COMMERCIAL.md](COMMERCIAL.md) for scope and contribution/relicensing notes.
+paid written agreement** with Gal Mitrani. See [commercial licensing](COMMERCIAL.md).
 This is source-available software, not Apache-licensed or OSI open source.
-Third-party libraries and theSVG icons retain their own licences in
-[THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
+Third-party libraries and artwork retain their own rights and licences; see
+[third-party notices](THIRD_PARTY_NOTICES.txt) and the [brand kit](brandkit/README.md).
+
+<p align="center">
+  <a href="mailto:gm@galmitrani.com"><strong>Support &amp; commercial licensing</strong></a> &nbsp; · &nbsp;
+  <a href="https://tapuz97.github.io/EZPZ-Label-Studio/privacy.html">Privacy</a> &nbsp; · &nbsp;
+  <a href="brandkit/README.md">Brand kit</a>
+</p>
