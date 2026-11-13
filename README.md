@@ -3,7 +3,7 @@
   <h1>EZPZ Label Studio</h1>
   <p><strong>Design. Prepare. Print.</strong></p>
   <p>A desktop workspace for your Bluetooth label printer.<br>Create a design, prepare your artwork, or turn a CSV into a batch of labels.</p>
-  <p><a href="https://apps.microsoft.com/detail/9PNR3K65GQFL"><img src="brandkit/badges/microsoft-store-en-us-dark.svg" width="200" alt="Download EZPZ Label Studio from the Microsoft Store"></a></p>
+  <p><a href="https://get.microsoft.com/installer/download/9PNR3K65GQFL?referrer=appbadge" target="_self"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Download EZPZ Label Studio from the Microsoft Store"></a></p>
   <p><a href="https://tapuz97.github.io/EZPZ-Label-Studio/"><strong>Open the web editor</strong></a> &nbsp; · &nbsp; <a href="https://github.com/Tapuz97/EZPZ-Label-Studio/releases/latest">Windows downloads</a> &nbsp; · &nbsp; <a href="examples/templates/sample-templates.json">Sample templates</a></p>
   <p>Native Windows app &nbsp; · &nbsp; Shared web editor &nbsp; · &nbsp; Local file processing</p>
 </div>
@@ -189,7 +189,7 @@ browser code and static assets are downloadable, so no secrets belong in them.
 | `src-tauri/src/` | Windows BLE, capabilities, raster encoding, and shutdown |
 | `public/` | Offline PDF assets, app icon, public support/privacy pages |
 | `examples/templates/` | Editable sample template bundle |
-| `brandkit/` | [App icons, promotional artwork, and Store badge](brandkit/README.md) |
+| `brandkit/` | [App icons, promotional artwork, and Store badge snippet](brandkit/README.md) |
 | `scripts/` | Asset generation, build collection, web and Store packaging |
 | `docs/` | Developer verification and cleanup records |
 
