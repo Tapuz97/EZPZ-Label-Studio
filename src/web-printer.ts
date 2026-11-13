@@ -31,7 +31,11 @@ async function bounded<T>(promise: Promise<T>, ms: number, label: string) {
       new Promise<never>((_, reject) => {
         timer = setTimeout(
           () =>
-            reject(Error(`${label} timed out. Reconnect before trying again.`)),
+            reject(
+              new BluetoothTimeoutError(
+                `${label} timed out. Reconnect before trying again.`,
+              ),
+            ),
           ms,
         );
       }),
@@ -39,6 +43,23 @@ async function bounded<T>(promise: Promise<T>, ms: number, label: string) {
   } finally {
     clearTimeout(timer);
   }
+}
+class BluetoothTimeoutError extends Error {}
+
+type PacketProof = { maxChunk: number; source: string; model?: string };
+function reportedPacketLimit(server: BluetoothRemoteGATTServer): number | null {
+  // Feature-detect the emerging API; no browser/OS guess and no flag required.
+  const limit = (
+    server as BluetoothRemoteGATTServer & {
+      maxWriteWithoutResponseSize?: number;
+    }
+  ).maxWriteWithoutResponseSize;
+  return typeof limit === "number" &&
+    Number.isInteger(limit) &&
+    limit >= 20 &&
+    limit <= 514
+    ? Math.min(limit, 244)
+    : null;
 }
 
 export class WebPrinter {
@@ -48,6 +69,8 @@ export class WebPrinter {
   private busy = false;
   private cancelled = false;
   private generation = 0;
+  private packetProof: PacketProof = { maxChunk: 20, source: "baseline" };
+  private lastTransfer: Record<string, unknown> | null = null;
   private info: ReturnType<WebPrinter["connectionInfo"]> | null = null;
   private connectionInfo(
     device: BluetoothDevice,
@@ -61,9 +84,11 @@ export class WebPrinter {
       writeMode: characteristic.properties.write
         ? "WithResponse"
         : "WithoutResponse",
-      maxChunk: 20,
+      maxChunk: this.packetProof.maxChunk,
+      chunkSource: this.packetProof.source,
       capabilities: {
-        status: "unknown",
+        model: this.packetProof.model,
+        status: this.packetProof.model ? "partial" : "unknown",
         source: ["Web Bluetooth supported GATT profile"],
         fieldSources: {},
         notes: [
@@ -71,6 +96,110 @@ export class WebPrinter {
         ],
       },
     };
+  }
+  private async modelReply(
+    write: BluetoothRemoteGATTCharacteristic,
+    notify: BluetoothRemoteGATTCharacteristic,
+    bytes: Uint8Array<ArrayBuffer>,
+  ): Promise<string | null> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let received = "",
+      resolveReply!: (value: string | null) => void;
+    const reply = new Promise<string | null>((resolve) => {
+      resolveReply = resolve;
+      timer = setTimeout(() => resolve(null), 1800);
+    });
+    const listener = () => {
+      const value = notify.value;
+      if (!value) return;
+      if (received.length + value.byteLength > 128) {
+        resolveReply(null);
+        return;
+      }
+      for (let i = 0; i < value.byteLength; i++)
+        received += String.fromCharCode(value.getUint8(i));
+      const model = received.replace(/\0/g, "").trim();
+      if (model === "DB403") resolveReply(model);
+      else if (/[\r\n]/.test(received) && model) resolveReply(null);
+    };
+    notify.addEventListener("characteristicvaluechanged", listener);
+    try {
+      await bounded(
+        write.writeValueWithResponse(bytes),
+        10000,
+        "Printer inquiry write",
+      );
+      return await reply;
+    } finally {
+      clearTimeout(timer);
+      notify.removeEventListener("characteristicvaluechanged", listener);
+    }
+  }
+  private async verifyPacketLimit(
+    device: BluetoothDevice,
+    write: BluetoothRemoteGATTCharacteristic,
+  ): Promise<PacketProof> {
+    const baseline: PacketProof = { maxChunk: 20, source: "baseline" };
+    if (!write.properties.write) return baseline;
+    const reported = device.gatt ? reportedPacketLimit(device.gatt) : null;
+    if (reported !== null)
+      return { maxChunk: reported, source: "browser-reported-payload" };
+    // Only the physically identified DB403/18F0 profile gets a read-only probe.
+    if (device.name !== "DB403" || write.service.uuid !== uuid("18f0"))
+      return baseline;
+    let notify: BluetoothRemoteGATTCharacteristic;
+    try {
+      notify = await bounded(
+        write.service.getCharacteristic(uuid("2af0")),
+        2000,
+        "Find model notification endpoint",
+      );
+    } catch (error) {
+      if (error instanceof BluetoothTimeoutError) throw error;
+      return baseline;
+    }
+    if (!notify.properties.notify && !notify.properties.indicate)
+      return baseline;
+    await bounded(
+      notify.startNotifications(),
+      2000,
+      "Listen for printer inquiry",
+    );
+    try {
+      const model = await this.modelReply(
+        write,
+        notify,
+        new TextEncoder().encode("~!T\n"),
+      );
+      if (model !== "DB403") return baseline;
+      // Let the single baseline reply settle before associating another reply.
+      await wait(150);
+      // Blank command separators followed by the known nonmutating inquiry.
+      // A truncated packet contains only blank lines: the inquiry is at the end.
+      // No print/feed/configuration instruction is sent by this check.
+      const probe = new Uint8Array(244).fill(10);
+      probe.set(new TextEncoder().encode("~!T\n"), 240);
+      try {
+        if ((await this.modelReply(write, notify, probe)) === model)
+          return { maxChunk: 244, source: "db403-padded-model-inquiry", model };
+      } catch (error) {
+        if (error instanceof BluetoothTimeoutError || !device.gatt?.connected)
+          throw error;
+      }
+      // Clear any incomplete command separator after a rejected/truncated probe.
+      await bounded(
+        write.writeValueWithResponse(new Uint8Array([10])),
+        3000,
+        "Finish printer inquiry",
+      );
+      return { ...baseline, model };
+    } finally {
+      await bounded(
+        notify.stopNotifications(),
+        2000,
+        "Release printer inquiry notifications",
+      );
+    }
   }
   async scan() {
     if (!webBluetoothAvailable())
@@ -159,6 +288,11 @@ export class WebPrinter {
         );
       if (generation !== this.generation)
         throw Error("Bluetooth connection cancelled.");
+      this.packetProof = await this.verifyPacketLimit(device, characteristic);
+      if (generation !== this.generation)
+        throw Error("Bluetooth connection cancelled.");
+      if (!device.gatt?.connected)
+        throw Error("The printer disconnected during connection verification.");
       this.device = device;
       this.characteristic = characteristic;
       this.info = this.connectionInfo(device, characteristic);
@@ -203,6 +337,7 @@ export class WebPrinter {
     return {
       platform: "Web Bluetooth",
       connection: this.status(),
+      lastTransfer: this.lastTransfer,
       notes: [
         "Browser device identifiers are scoped to this website. No hardware address or negotiated MTU is exposed.",
         "A successful transfer is not confirmation that a physical label printed.",
@@ -219,7 +354,21 @@ export class WebPrinter {
     this.busy = true;
     this.cancelled = false;
     const characteristic = this.characteristic,
-      started = performance.now();
+      encodingStarted = performance.now();
+    let started = encodingStarted,
+      encodingMs = 0,
+      transferError: string | null = null;
+    const reported = this.device.gatt
+      ? reportedPacketLimit(this.device.gatt)
+      : null;
+    if (characteristic.properties.write && reported !== null)
+      this.packetProof = {
+        ...this.packetProof,
+        maxChunk: reported,
+        source: "browser-reported-payload",
+      };
+    const maxChunk = this.packetProof.maxChunk;
+    if (this.info) this.info.maxChunk = maxChunk;
     let sent = 0,
       chunks = 0,
       lastProgress = 0;
@@ -239,12 +388,14 @@ export class WebPrinter {
     let bytes: Uint8Array = new Uint8Array();
     try {
       bytes = await encodeWebPrint(job);
-      for (let offset = 0; offset < bytes.length; offset += 20) {
+      encodingMs = performance.now() - encodingStarted;
+      started = performance.now();
+      for (let offset = 0; offset < bytes.length; offset += maxChunk) {
         if (this.cancelled)
           throw Error("Printing stopped. Buffered data may still print.");
         if (performance.now() - started > 600000)
           throw Error("The print transfer exceeded ten minutes.");
-        const chunk = bytes.slice(offset, offset + 20),
+        const chunk = bytes.slice(offset, offset + maxChunk),
           tick = performance.now();
         await bounded(
           characteristic.properties.write
@@ -258,7 +409,8 @@ export class WebPrinter {
         const budget = characteristic.properties.write
           ? (chunk.length / 8192) * 1000
           : Math.max(10, (chunk.length / 8192) * 1000);
-        await wait(Math.max(0, budget - (performance.now() - tick)));
+        const remaining = budget - (performance.now() - tick);
+        if (remaining > 0) await wait(remaining);
         if (performance.now() - lastProgress >= 100 || sent === bytes.length) {
           progress();
           lastProgress = performance.now();
@@ -267,12 +419,26 @@ export class WebPrinter {
       return {
         bytesSent: sent,
         chunksSent: chunks,
+        elapsedMs: performance.now() - started,
+        encodingMs,
+        maxChunk,
         message: `Sent ${sent.toLocaleString()} bytes. Check the printer for output.`,
       };
     } catch (error) {
+      transferError = error instanceof Error ? error.message : String(error);
       this.disconnect();
       throw error;
     } finally {
+      this.lastTransfer = {
+        bytesSent: sent,
+        totalBytes: bytes.length,
+        chunksSent: chunks,
+        elapsedMs: performance.now() - started,
+        encodingMs,
+        maxChunk,
+        chunkSource: this.packetProof.source,
+        error: transferError,
+      };
       this.busy = false;
     }
   }

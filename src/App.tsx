@@ -27,7 +27,11 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent, ReactNode } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { assetUrl } from "./assets";
-import { bluetoothAvailable, printerCommand, WEB_PROGRESS_EVENT } from "./printer-command";
+import {
+  bluetoothAvailable,
+  printerCommand,
+  WEB_PROGRESS_EVENT,
+} from "./printer-command";
 import { listen } from "@tauri-apps/api/event";
 import {
   ArrowDown,
@@ -98,7 +102,17 @@ type Connection = {
   writeMode: string;
   maxChunk: number;
 };
-type PrintResult = { bytesSent: number; chunksSent: number; message: string };
+type PrintResult = {
+  bytesSent: number;
+  chunksSent: number;
+  message: string;
+  elapsedMs?: number;
+  bytesPerSecond?: number;
+  maxChunk?: number;
+  negotiatedMtu?: number;
+  chunkSource?: string;
+  encodingMs?: number;
+};
 type Saved = { id: string; document: LabelDocument };
 type History = {
   past: LabelDocument[];
@@ -263,6 +277,7 @@ export default function App() {
     bytesPerSecond: number;
   } | null>(null);
   const [printNote, setPrintNote] = useState("");
+  const lastPrintDiagnostics = useRef<Record<string, unknown> | null>(null);
   const [notice, setNotice] = useState("");
   const [autosaved, setAutosaved] = useState(true);
   const [error, setError] = useState("");
@@ -403,15 +418,18 @@ export default function App() {
     };
     const onProgress = (payload: TransferProgress) => {
       if (!disposed) {
-        setProgress(
-          payload.total ? payload.sent / payload.total : 0,
-        );
+        setProgress(payload.total ? payload.sent / payload.total : 0);
         setTransferStats(payload);
       }
     };
-    const onWebProgress = (event: Event) => onProgress((event as CustomEvent<TransferProgress>).detail);
-    const unlisten = native ? listen<TransferProgress>("print-progress", event => onProgress(event.payload)) : Promise.resolve(() => {});
-    if (!native) window.addEventListener(WEB_PROGRESS_EVENT,onWebProgress);
+    const onWebProgress = (event: Event) =>
+      onProgress((event as CustomEvent<TransferProgress>).detail);
+    const unlisten = native
+      ? listen<TransferProgress>("print-progress", (event) =>
+          onProgress(event.payload),
+        )
+      : Promise.resolve(() => {});
+    if (!native) window.addEventListener(WEB_PROGRESS_EVENT, onWebProgress);
     const timer = setInterval(() => {
       printerCommand<{
         connected: boolean;
@@ -432,7 +450,7 @@ export default function App() {
       disposed = true;
       clearInterval(timer);
       void unlisten.then((f) => f());
-      window.removeEventListener(WEB_PROGRESS_EVENT,onWebProgress);
+      window.removeEventListener(WEB_PROGRESS_EVENT, onWebProgress);
     };
   }, []);
   useEffect(() => {
@@ -617,7 +635,14 @@ export default function App() {
     if (e.button === 0 && drag.current) drag.current.corner = corner;
   }
   async function scan() {
-    if (!bluetoothAvailable() || printing || scanning || connecting || connection) return;
+    if (
+      !bluetoothAvailable() ||
+      printing ||
+      scanning ||
+      connecting ||
+      connection
+    )
+      return;
     clearMessages();
     setDevices([]);
     setScanning(true);
@@ -639,7 +664,9 @@ export default function App() {
     clearMessages();
     setConnecting(device.id);
     try {
-      const c = await printerCommand<Connection>("connect_printer", { id: device.id });
+      const c = await printerCommand<Connection>("connect_printer", {
+        id: device.id,
+      });
       setConnection(c);
       patchDoc({ protocol: printerProtocol(c.capabilities?.model || c.name) });
       setNotice(`Connected to ${c.name}.`);
@@ -836,6 +863,12 @@ export default function App() {
     setTransferStats(null);
     stopBatch.current = false;
     let done = 0;
+    const started = performance.now();
+    const jobTimings: Record<string, unknown>[] = [];
+    lastPrintDiagnostics.current = {
+      platform: native ? "Windows" : "Web Bluetooth",
+      jobs: jobTimings,
+    };
     try {
       const jobs =
         pdfDocuments.length > 1
@@ -855,20 +888,23 @@ export default function App() {
             : [{ doc, row }];
       if (jobs.length * copies > 100)
         throw Error("A print batch is limited to 100 labels including copies.");
+      let singleCanvas: HTMLCanvasElement | null = null;
+      const preparationStarted = performance.now();
       for (const [index, item] of jobs.entries()) {
         if (stopBatch.current) break;
         setPrintNote(`Checking label ${index + 1} of ${jobs.length}`);
-        await renderLabel(item.doc, item.row);
+        const rendered = await renderLabel(item.doc, item.row);
+        if (jobs.length === 1) singleCanvas = rendered;
       }
+      const preflightMs = performance.now() - preparationStarted;
       for (const item of jobs) {
         if (stopBatch.current) break;
         setPrintNote(`Sending ${done + 1} of ${jobs.length}`);
-        const canvas = await renderLabel(item.doc, item.row);
-        const rgba = Array.from(
-          canvas
-            .getContext("2d")!
-            .getImageData(0, 0, canvas.width, canvas.height).data,
-        );
+        const canvas = singleCanvas ?? (await renderLabel(item.doc, item.row));
+        const rgba = canvas
+          .getContext("2d")!
+          .getImageData(0, 0, canvas.width, canvas.height).data;
+        const backendStarted = performance.now();
         const result = await printerCommand<PrintResult>("print_label", {
           job: {
             widthMm: item.doc.widthMm,
@@ -886,6 +922,19 @@ export default function App() {
             ),
           },
         });
+        jobTimings.push({
+          widthPx: canvas.width,
+          heightPx: canvas.height,
+          dpi: item.doc.dpi,
+          backendCallMs: performance.now() - backendStarted,
+          ...result,
+        });
+        lastPrintDiagnostics.current = {
+          platform: native ? "Windows" : "Web Bluetooth",
+          preflightMs,
+          totalElapsedMs: performance.now() - started,
+          jobs: jobTimings,
+        };
         done++;
         setPrintNote(result.message);
       }
@@ -895,6 +944,12 @@ export default function App() {
           : `Sent ${done * copies} label${done * copies === 1 ? "" : "s"} to ${connection.name}. Check the printer for output.`,
       );
     } catch (e) {
+      lastPrintDiagnostics.current = {
+        ...lastPrintDiagnostics.current,
+        totalElapsedMs: performance.now() - started,
+        jobs: jobTimings,
+        error: e instanceof Error ? e.message : String(e),
+      };
       report(
         new Error(
           `${e instanceof Error ? e.message : String(e)}${done ? ` ${done} earlier job(s) were already sent.` : ""}`,
@@ -1892,9 +1947,21 @@ export default function App() {
                       .then((data) =>
                         saveDownload(
                           "printer-diagnostics.json",
-                          new Blob([JSON.stringify(data, null, 2)], {
-                            type: "application/json",
-                          }),
+                          new Blob(
+                            [
+                              JSON.stringify(
+                                {
+                                  printer: data,
+                                  lastPrint: lastPrintDiagnostics.current,
+                                },
+                                null,
+                                2,
+                              ),
+                            ],
+                            {
+                              type: "application/json",
+                            },
+                          ),
                         ),
                       )
                       .catch(report)

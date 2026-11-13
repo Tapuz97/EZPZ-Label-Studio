@@ -23,6 +23,13 @@ pub struct PrintJob {
 
 impl PrintJob {
     pub fn validate(&self) -> Result<(), String> {
+        let pixels = self.validate_metadata()?;
+        if self.rgba.len() != pixels.checked_mul(4).ok_or("Raster size overflow")? {
+            return Err("Invalid RGBA buffer or raster exceeds 8 million pixels.".into());
+        }
+        Ok(())
+    }
+    fn validate_metadata(&self) -> Result<usize, String> {
         if !self.width_mm.is_finite()
             || !(10.0..=216.0).contains(&self.width_mm)
             || !self.height_mm.is_finite()
@@ -50,15 +57,70 @@ impl PrintJob {
             .width_px
             .checked_mul(self.height_px)
             .ok_or("Raster size overflow")?;
-        if pixels > 8_000_000
-            || self.rgba.len() != pixels.checked_mul(4).ok_or("Raster size overflow")?
-        {
+        if pixels > 8_000_000 {
             return Err("Invalid RGBA buffer or raster exceeds 8 million pixels.".into());
         }
         if !["tspl", "zpl"].contains(&self.protocol.as_str()) {
             return Err("Unsupported printer language.".into());
         }
-        Ok(())
+        Ok(pixels)
+    }
+}
+
+/// Packed, MSB-first black=1 rows avoid transferring RGBA JSON through WebView IPC.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RasterPrintJob {
+    pub width_mm: f64,
+    pub height_mm: f64,
+    pub gap_mm: f64,
+    pub dpi: u32,
+    pub copies: u16,
+    pub density: u8,
+    pub raster: Vec<u8>,
+    pub width_px: usize,
+    pub height_px: usize,
+    pub threshold: u8,
+    pub protocol: String,
+}
+impl RasterPrintJob {
+    fn metadata(&self) -> PrintJob {
+        PrintJob {
+            width_mm: self.width_mm,
+            height_mm: self.height_mm,
+            gap_mm: self.gap_mm,
+            dpi: self.dpi,
+            copies: self.copies,
+            density: self.density,
+            rgba: Vec::new(),
+            width_px: self.width_px,
+            height_px: self.height_px,
+            threshold: self.threshold,
+            protocol: self.protocol.clone(),
+        }
+    }
+}
+pub fn encode_raster(job: &RasterPrintJob) -> Result<Vec<u8>, String> {
+    let metadata = job.metadata();
+    metadata.validate_metadata()?;
+    let row_bytes = job.width_px.div_ceil(8);
+    if job.raster.len() != row_bytes * job.height_px {
+        return Err("Packed raster dimensions do not match the label.".into());
+    }
+    if job.width_px % 8 != 0 {
+        let unused_mask = 0xffu8 >> (job.width_px % 8);
+        if job
+            .raster
+            .chunks_exact(row_bytes)
+            .any(|row| row[row_bytes - 1] & unused_mask != 0)
+        {
+            return Err("Packed raster edge padding must be white.".into());
+        }
+    }
+    match job.protocol.as_str() {
+        "zpl" => encode_zpl(&metadata, &job.raster),
+        "tspl" => encode_tspl(&metadata, &job.raster),
+        _ => unreachable!("validated printer format"),
     }
 }
 
@@ -235,5 +297,44 @@ mod tests {
         assert!(data.contains("^FO0,0\n"));
         assert!(data.contains("^FO0,256\n"));
         assert!(data.contains("^FO0,512\n^GFA,1,1,1,:Z64:"));
+    }
+    fn packed(job: &PrintJob) -> RasterPrintJob {
+        RasterPrintJob {
+            width_mm: job.width_mm,
+            height_mm: job.height_mm,
+            gap_mm: job.gap_mm,
+            dpi: job.dpi,
+            copies: job.copies,
+            density: job.density,
+            raster: monochrome(job),
+            width_px: job.width_px,
+            height_px: job.height_px,
+            threshold: job.threshold,
+            protocol: job.protocol.clone(),
+        }
+    }
+    #[test]
+    fn packed_ipc_preserves_exact_zpl_and_tspl_output() {
+        let mut job = pixel_job(80, 80, vec![255; 80 * 80 * 4]);
+        job.width_mm = 10.0;
+        job.height_mm = 10.0;
+        job.rgba[..3].fill(0);
+        for format in ["zpl", "tspl"] {
+            job.protocol = format.into();
+            let small = packed(&job);
+            assert_eq!(small.raster.len() * 32, job.rgba.len());
+            assert_eq!(encode_raster(&small).unwrap(), encode(&job).unwrap());
+        }
+    }
+    #[test]
+    fn packed_ipc_rejects_wrong_length_and_black_padding() {
+        let mut job = pixel_job(82, 80, vec![255; 82 * 80 * 4]);
+        job.width_mm = 10.2;
+        job.height_mm = 10.0;
+        let mut small = packed(&job);
+        small.raster[10] |= 1;
+        assert!(encode_raster(&small).unwrap_err().contains("padding"));
+        small.raster.pop();
+        assert!(encode_raster(&small).unwrap_err().contains("dimensions"));
     }
 }

@@ -1,5 +1,28 @@
 # Native Windows validation — 2026-11-13
 
+## Version 0.5.1 — packed raster bridge and live transfer
+
+- All 41 native release tests and Rust formatting checks pass. Packed-raster
+  tests prove byte-identical ZPL/TSPL output to the existing RGBA encoder and
+  reject malformed lengths or black bits in unused row padding.
+- Read-only DB403 capability inspection observed Windows MTU 247 / 244-byte
+  acknowledged writes. DPI and maximum width remain unreported.
+- The reproducible `payload_probe` example sent only model inquiries: 4-byte
+  baseline and a 244-byte packet containing blank separators with the inquiry
+  at its tail. Both returned DB403 (72/76 ms to reply); no print/feed/configuration
+  command was sent. The probe unsubscribed and disconnected afterward.
+- The actual 0.5.1 native UI sent one 60 × 90 mm WORKSHOP / 001 label through
+  the new packed command: 2,883 encoded bytes, 742 ms BLE transfer, 938 ms from
+  Print click to Sent. The owner confirmed correct physical output. This is a
+  synthetic sample, not a timing measurement of the owner's shipping PDF or
+  paper-feed completion.
+- Closing the isolated native app through its title-bar X left neither its
+  application process nor its owned debug endpoint running. The subsequent
+  independent Chrome connection succeeded.
+- The optimized Windows NSIS build passes. Store packaging uses package version
+  1.0.1.0 separately from application 0.5.1. MSIX installation, WACK and Store
+  certification remain separate, incomplete checks.
+
 ## Version 0.5.0 — repository, licensing and Store preparation
 
 - 39 native release tests, Rust formatting checks and the Windows NSIS build

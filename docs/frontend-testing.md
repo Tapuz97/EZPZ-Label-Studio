@@ -1,5 +1,29 @@
 # Frontend validation
 
+## Version 0.5.1 — browser transfer performance
+
+- All 47 frontend tests, TypeScript and production builds pass. Tests cover
+  browser-reported payload limits, the DB403 model inquiry, rejected/truncated
+  probes, silent notifications, uncertain-write timeouts, fallback packet sizes,
+  sequential byte preservation and skipping timers when ACK latency has already
+  consumed the pacing budget.
+- A rendered simulated DB403 flow sent 2,891 encoded bytes in 12 sequential
+  packets of at most 244 bytes. Model queries were 4 and 244 bytes; diagnostics
+  contained transfer and preparation timings. No console/page errors occurred.
+- An actual Chrome 157 / Windows 11 connection to DB403 verified the 244-byte
+  packet using the padded model inquiry. The requested repeat of a 60 × 90 mm WORKSHOP / 001 sample
+  reached Sent in 896 ms, including about 734 ms transfer and 17 ms encoding.
+  The owner confirmed correct physical output. An earlier 935 ms run was
+  interrupted by printer power loss after transfer; it was not counted as
+  physical-output confirmation. These are small sample timings, not PDF timings.
+- Native command-bridge tests verify packed monochrome rows replace RGBA JSON,
+  preserving metadata and reducing raw raster bytes by 32 times at aligned widths.
+  Single-label preflight rendering is reused for transmission. Existing batch
+  validation still runs before the first label is sent.
+- The unacknowledged-only policy remains 20-byte packets / 10 ms pacing. Other
+  printer profiles retain conservative sizing unless the browser reports a limit.
+  The host ceiling remains 8 KiB/s; no print is automatically replayed.
+
 ## Version 0.5.0 — web edition
 
 - Thirty-eight frontend tests pass, including browser raster packing, alpha and

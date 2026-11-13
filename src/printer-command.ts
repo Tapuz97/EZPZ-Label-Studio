@@ -1,13 +1,23 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { webPrinter, webBluetoothAvailable } from "./web-printer";
-import type { WebPrintJob } from "./web-protocol";
+import { monochrome, validatePrintJob, type WebPrintJob } from "./web-protocol";
 export { WEB_PROGRESS_EVENT } from "./web-printer";
 export const bluetoothAvailable = () => isTauri() || webBluetoothAvailable();
 export async function printerCommand<T>(
   command: string,
   args?: Record<string, unknown>,
 ): Promise<T> {
-  if (isTauri()) return invoke<T>(command, args);
+  if (isTauri()) {
+    if (command === "print_label") {
+      const job = args?.job as WebPrintJob;
+      validatePrintJob(job);
+      const { rgba: _rgba, ...metadata } = job;
+      return invoke<T>("print_raster", {
+        job: { ...metadata, raster: Array.from(monochrome(job)) },
+      });
+    }
+    return invoke<T>(command, args);
+  }
   let result: unknown;
   switch (command) {
     case "scan_printers":

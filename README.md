@@ -38,9 +38,9 @@ independent project, unaffiliated with the reference app or printer manufacturer
 
 | Printer / family | Current evidence |
 | --- | --- |
-| **BPXX DB403** | Native Windows discovery, connection and a physical 60 × 90 mm, 203 DPI print verified; output confirmed by the owner |
+| **BPXX DB403** | Windows and Chrome/Windows 11 connection and physical 60 × 90 mm, 203 DPI printing verified; output confirmed by the owner |
 | Other EZlabel-compatible BLE printers | Supported service/profile and format paths implemented; each model still needs physical testing |
-| Web Bluetooth printing | Encoding and lifecycle tested with simulated devices; real browser/printer combinations need physical testing |
+| Web Bluetooth printing | DB403 physically verified on Chrome / Windows 11; other browser/printer combinations need testing |
 | Niimbot, iPrint, Labelife, Nelko, Jadens and other families | Future research candidates; **not currently claimed as supported** |
 
 A Bluetooth name or connection does not prove print compatibility. A printer
@@ -80,9 +80,10 @@ test prints. Shared protocols across brands remain a possibility to verify.
 | Storage | Local application profile | This website's browser storage |
 | Internet | Not required after installation | Required to load the hosted app; no offline web-install guarantee |
 
-The web edition needs permission after your click. Browser MTU information is
-unavailable, so web transfers use conservative 20-byte chunks and may be slower
-than Windows. Safari and Firefox are not Bluetooth-printing targets. See
+The web edition needs permission after your click. It uses a browser-reported
+payload limit when available. For DB403 on its verified service, a non-printing
+model inquiry checks whether a complete 244-byte packet arrives; otherwise it
+keeps 20-byte chunks. Safari and Firefox are not Bluetooth-printing targets. See
 [browser/security limitations](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API).
 Windows and browser templates are separate; export/import JSON to move designs.
 

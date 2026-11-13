@@ -1,4 +1,58 @@
-# Bluetooth transfer scheduling — 0.3.1
+# Bluetooth transfer performance
+
+## Version 0.5.1
+
+The browser previously sent only 20 bytes per acknowledged write and scheduled
+a timer even when the acknowledgement had already consumed the pacing budget.
+Windows could use its negotiated 244-byte payload. This explains the additional
+round trips in the browser; the exact cause of the owner's one-minute PDF print
+was not instrumented before this change.
+
+The browser now feature-detects a reported packet limit. If unavailable, the
+DB403/18F0 profile verifies delivery of a 244-byte packet with a non-printing
+model inquiry at its tail. Missing, rejected or unanswered verification falls
+back to 20 bytes; uncertain control-write timeouts disconnect. Other models
+retain the conservative path unless a browser-reported limit is available.
+Acknowledged writes stay sequential, the 8 KiB/s host ceiling remains, and
+unacknowledged-only links retain 20-byte/10 ms pacing. No automatic replay occurs.
+
+Windows now receives packed monochrome rows through WebView IPC instead of
+millions of RGBA JSON values. Raw raster data is 32 times smaller at byte-aligned
+widths. Native tests prove the final ZPL/TSPL bytes remain identical. Single-job
+preflight rendering is reused. Diagnostics separate preparation, backend and
+transfer timing without including label artwork.
+
+### Actual DB403 sample measurements
+
+One identical initial 60 × 90 mm WORKSHOP / 001 design was sent through each
+actual UI on Windows 11. Font/compressor differences produced slightly different
+encoded byte counts. Timing ends when the transport accepts the stream, not when
+the paper stops moving.
+
+| Sender | Encoded bytes | Transfer | Print click to Sent |
+| --- | ---: | ---: | ---: |
+| Windows 0.5.1 | 2,883 | 742 ms | 938 ms |
+| Chrome 157 / web 0.5.1 | 2,891 / 12 packets | 734 ms | 896 ms |
+
+The owner confirmed correct physical output from both senders. The Chrome row
+is the requested repeat after power was interrupted during an earlier run. The
+original shipping PDF has not yet been timed on the updated release.
+
+For the previously measured 8,754-byte PDF payload, an offline simulation at
+125 ms per ACK takes 54.75 seconds with 438 × 20-byte writes versus 4.5 seconds
+with 36 × 244-byte writes. The ACK time is a simulation input, not a measured
+DB403 value or a promise of PDF print speed. Reproduce with:
+
+```powershell
+cargo run --release --manifest-path src-tauri/Cargo.toml --example transport_benchmark -- --bytes 8754 --ack-ms 125 --mtu 247
+```
+
+The read-only hardware verification is reproducible with
+`cargo run --release --manifest-path src-tauri/Cargo.toml --example payload_probe`.
+It connects only to DB403 on the verified profile, subscribes, queries the model
+and releases the connection. It does not print.
+
+## Historical implementation — 0.3.1
 
 The previous sender always used 20-byte writes followed by a 10 ms delay,
 including writes that already waited for an ATT acknowledgement. For the

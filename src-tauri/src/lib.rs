@@ -5,7 +5,7 @@ mod shutdown;
 use bluetooth::{
     Bluetooth, CapabilityReport, ConnectionInfo, Printer, PrinterCapabilities, SendReceipt,
 };
-use protocol::PrintJob;
+use protocol::{PrintJob, RasterPrintJob};
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use tauri::{Emitter, Manager, State};
@@ -165,6 +165,26 @@ async fn print_label(
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> Result<SendReceipt, String> {
+    submit_print(PrintInput::Rgba(job), state, app).await
+}
+
+#[tauri::command]
+async fn print_raster(
+    job: RasterPrintJob,
+    state: State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> Result<SendReceipt, String> {
+    submit_print(PrintInput::Packed(job), state, app).await
+}
+enum PrintInput {
+    Rgba(PrintJob),
+    Packed(RasterPrintJob),
+}
+async fn submit_print(
+    input: PrintInput,
+    state: State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> Result<SendReceipt, String> {
     state
         .shutdown
         .while_running(async {
@@ -174,10 +194,13 @@ async fn print_label(
                 state.cancelled.store(true, Ordering::SeqCst);
                 return Err("The application is closing.".into());
             }
-            let encoded = protocol::encode(&job)?;
+            let (encoded, width_px, dpi) = match input {
+                PrintInput::Rgba(job) => (protocol::encode(&job)?, job.width_px, job.dpi),
+                PrintInput::Packed(job) => (protocol::encode_raster(&job)?, job.width_px, job.dpi),
+            };
             let mut bluetooth = state.bluetooth.lock().await;
             if let Some(report) = bluetooth.capability_report() {
-                report.capabilities.validate_raster(job.width_px, job.dpi)?;
+                report.capabilities.validate_raster(width_px, dpi)?;
             }
             let transfer_started = std::time::Instant::now();
             let result = bluetooth
@@ -283,6 +306,7 @@ pub fn run() {
             printer_status,
             printer_diagnostics,
             print_label,
+            print_raster,
             cancel_print,
             save_export,
             set_close_guard_ready,
