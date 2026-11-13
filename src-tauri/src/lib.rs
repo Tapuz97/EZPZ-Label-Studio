@@ -1,6 +1,7 @@
 pub mod bluetooth;
 pub mod protocol;
 mod shutdown;
+mod template_store;
 
 use bluetooth::{
     Bluetooth, CapabilityReport, ConnectionInfo, Printer, PrinterCapabilities, SendReceipt,
@@ -299,7 +300,10 @@ fn close_app(app: tauri::AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState::default())
+        .manage(template_store::TemplateStore::default())
         .invoke_handler(tauri::generate_handler![
+            template_store::load_template_library,
+            template_store::save_template_library,
             scan_printers,
             connect_printer,
             disconnect_printer,

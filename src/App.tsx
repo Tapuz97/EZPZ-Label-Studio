@@ -1,3 +1,4 @@
+import { CreatorToolbar } from "./CreatorToolbar";
 import { FieldGroup } from "@/components/ui/field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -16,9 +17,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PrinterDialog } from "@/components/printer-dialog";
 import { ArtworkViewport } from "@/components/artwork-viewport";
 import { useUnsavedWork } from "@/components/unsaved-work";
+import { ComponentSettings } from "./ComponentSettings";
+import {
+  alignElement,
+  angleFromPointer,
+  bounds,
+  snapPlacement,
+  snapResizeDelta,
+  rotationSnapping,
+  type Alignment,
+} from "./editor-geometry";
 import { resizeElement } from "./resize";
 import type { ResizeCorner } from "./resize";
-import { parseTemplateFile, templateBundle } from "./templates";
+import { loadTemplateLibrary, saveTemplateLibrary } from "./template-store";
+import { parseTemplateFiles, templateBundle } from "./templates";
 import { Button } from "@/components/ui/button";
 import { FormInput } from "@/components/form-input";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,6 +81,8 @@ import {
   makeElement,
   mmToPx,
   parseCsv,
+  sampleCsv,
+  validateCsvColumns,
   parseDocument,
   uid,
 } from "./model";
@@ -260,6 +274,56 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = doc.elements.find((e) => e.id === selectedId);
   const [library, setLibrary] = useState(loadLibrary);
+  const [libraryReady, setLibraryReady] = useState(false);
+  const [libraryBusy, setLibraryBusy] = useState(false);
+  const libraryLock = useRef(false);
+  const [templateLocation, setTemplateLocation] = useState(
+    "Loading template location…",
+  );
+  useEffect(() => {
+    let disposed = false;
+    void loadTemplateLibrary(loadLibrary())
+      .then((result) => {
+        if (!disposed) {
+          setLibrary(result.templates);
+          setTemplateLocation(
+            `${result.location}${result.fallback ? " (user-writable fallback)" : ""}`,
+          );
+          setLibraryReady(true);
+        }
+      })
+      .catch((e) => {
+        if (!disposed) {
+          setError(String(e));
+          setTemplateLocation(
+            "Template storage unavailable. Your existing files have not been changed.",
+          );
+        }
+      });
+    return () => {
+      disposed = true;
+    };
+  }, []);
+  async function persistLibrary(next: Saved[]) {
+    const result = await saveTemplateLibrary(next);
+    setLibrary(result.templates);
+    setTemplateLocation(
+      `${result.location}${result.fallback ? " (user-writable fallback)" : ""}`,
+    );
+  }
+  function beginLibraryWrite() {
+    if (!libraryReady || libraryLock.current)
+      throw Error(
+        "Please wait for template storage to finish loading or saving.",
+      );
+    libraryLock.current = true;
+    setLibraryBusy(true);
+  }
+  function endLibraryWrite() {
+    libraryLock.current = false;
+    setLibraryBusy(false);
+  }
+
   const [panel, setPanel] = useState<"elements" | "templates" | "data">(
     "elements",
   );
@@ -284,6 +348,11 @@ export default function App() {
   const [renderError, setRenderError] = useState("");
   const [zoom, setZoom] = useState(100);
   const [grid, setGrid] = useState(true);
+  const [snap, setSnap] = useState(true);
+  const [alignmentTarget, setAlignmentTarget] = useState("label");
+  const [guides, setGuides] = useState<{ axis: "x" | "y"; position: number }[]>(
+    [],
+  );
   const [csvRows, setCsvRows] = useState<Record<string, string>[]>([]);
   const [csvName, setCsvName] = useState("");
   const [csvRow, setCsvRow] = useState(0);
@@ -303,6 +372,7 @@ export default function App() {
     x: number;
     y: number;
     corner?: ResizeCorner;
+    rotating?: boolean;
     next: LabelDocument;
   } | null>(null);
   const [dragDoc, setDragDoc] = useState<LabelDocument | null>(null);
@@ -349,11 +419,35 @@ export default function App() {
         e.id === selectedId ? { ...e, ...patch } : e,
       ),
     }));
+  function alignSelected(mode: Alignment) {
+    if (!selected) return;
+    const target = doc.elements.find(
+      (el) => el.id === alignmentTarget && el.id !== selected.id,
+    );
+    const patch = alignElement(
+      selected,
+      target
+        ? bounds(target)
+        : { x: 0, y: 0, width: doc.widthMm, height: doc.heightMm },
+      mode,
+    );
+    const visual = bounds({ ...selected, ...patch });
+    patchElement({
+      x:
+        patch.x +
+        clamp(visual.x, 0, Math.max(0, doc.widthMm - visual.width)) -
+        visual.x,
+      y:
+        patch.y +
+        clamp(visual.y, 0, Math.max(0, doc.heightMm - visual.height)) -
+        visual.y,
+    });
+  }
   const patchDoc = (patch: Partial<LabelDocument>) =>
     update((d) => ({ ...d, ...patch }));
   function changeElementSize(dimension: "width" | "height", value: number) {
     if (!selected) return;
-    if (selected.kind !== "image") {
+    if (!["image", "text", "qr"].includes(selected.kind)) {
       patchElement({ [dimension]: value });
       return;
     }
@@ -367,6 +461,9 @@ export default function App() {
     patchElement({
       width,
       height,
+      ...(selected.kind === "text"
+        ? { fontSize: clamp(selected.fontSize * scale, 2, 144) }
+        : {}),
       x: Math.min(selected.x, doc.widthMm - width),
       y: Math.min(selected.y, doc.heightMm - height),
     });
@@ -581,12 +678,43 @@ export default function App() {
     const d = drag.current,
       rect = stageRef.current.getBoundingClientRect();
     const element = doc.elements.find((el) => el.id === d.id)!;
+    if (d.rotating) {
+      const cx =
+        rect.left +
+        ((element.x + element.width / 2) / doc.widthMm) * rect.width;
+      const cy =
+        rect.top +
+        ((element.y + element.height / 2) / doc.heightMm) * rect.height;
+      const rotation = angleFromPointer(
+        cx,
+        cy,
+        e.clientX,
+        e.clientY,
+        rotationSnapping(snap, e.shiftKey, e.altKey),
+      );
+      d.next = {
+        ...doc,
+        elements: doc.elements.map((el) =>
+          el.id === d.id ? { ...el, rotation } : el,
+        ),
+      };
+      setDragDoc(d.next);
+      return;
+    }
     if (d.corner) {
+      const rawDelta = {
+        dx: ((e.clientX - d.startX) / rect.width) * doc.widthMm,
+        dy: ((e.clientY - d.startY) / rect.height) * doc.heightMm,
+      };
+      const delta =
+        snap && !e.altKey
+          ? snapResizeDelta(element, d.corner, rawDelta.dx, rawDelta.dy)
+          : rawDelta;
       const resized = resizeElement(
         element,
         d.corner,
-        ((e.clientX - d.startX) / rect.width) * doc.widthMm,
-        ((e.clientY - d.startY) / rect.height) * doc.heightMm,
+        delta.dx,
+        delta.dy,
         doc.widthMm,
         doc.heightMm,
       );
@@ -613,10 +741,23 @@ export default function App() {
         0,
         Math.max(0, doc.heightMm - element.height),
       );
+    const snapped =
+      snap && !e.altKey
+        ? snapPlacement(
+            element,
+            x,
+            y,
+            doc.elements,
+            doc.widthMm,
+            doc.heightMm,
+            (4 / rect.width) * doc.widthMm,
+          )
+        : { x, y, guides: [] };
+    setGuides(snapped.guides);
     d.next = {
       ...doc,
       elements: doc.elements.map((el) =>
-        el.id === d.id ? { ...el, x, y } : el,
+        el.id === d.id ? { ...el, x: snapped.x, y: snapped.y } : el,
       ),
     };
     setDragDoc(d.next);
@@ -624,6 +765,7 @@ export default function App() {
   function endDrag() {
     if (drag.current && drag.current.next !== doc) update(drag.current.next);
     drag.current = null;
+    setGuides([]);
     setDragDoc(null);
   }
   function beginResize(
@@ -692,7 +834,9 @@ export default function App() {
     setShowPrinter(true);
     if (bluetoothAvailable() && !connection && !printing) void scan();
   }
-  function saveTemplate() {
+  async function saveTemplate() {
+    if (!libraryReady || libraryLock.current) return;
+    beginLibraryWrite();
     try {
       const existing = library.findIndex((t) => t.document.name === doc.name);
       const next =
@@ -705,60 +849,53 @@ export default function App() {
         throw Error(
           "Template library is limited to 30 labels. Export or remove one first.",
         );
-      localStorage.setItem(libraryKey, JSON.stringify(next));
-      setLibrary(next);
+      await persistLibrary(next);
       markSaved(doc);
       setNotice(`Saved “${doc.name}” to your templates.`);
       setError("");
     } catch (e) {
       report(e);
+    } finally {
+      endLibraryWrite();
     }
   }
-  function deleteTemplate(id: string) {
+  async function deleteTemplate(id: string) {
+    if (!libraryReady || libraryLock.current) return;
+    beginLibraryWrite();
     try {
       const next = library.filter((t) => t.id !== id);
-      localStorage.setItem(libraryKey, JSON.stringify(next));
-      setLibrary(next);
+      await persistLibrary(next);
     } catch (e) {
       report(e);
+    } finally {
+      endLibraryWrite();
     }
   }
-  async function importLabel(file?: File) {
-    if (!file) return;
+  async function importLabel(files: File[]) {
+    if (!files.length) return;
+    if (!libraryReady || libraryLock.current) {
+      report(Error("Please wait for template storage."));
+      return;
+    }
+    beginLibraryWrite();
     clearMessages();
     try {
-      if (file.size > 12_000_000)
-        throw Error("Template file is too large (12 MB maximum).");
-      const documents = parseTemplateFile(JSON.parse(await file.text()));
-      const saved: unknown = JSON.parse(
-        localStorage.getItem(libraryKey) || "[]",
-      );
-      if (!Array.isArray(saved))
+      const documents = await parseTemplateFiles(files);
+      if (library.length + documents.length > 30)
         throw Error(
-          "Your existing library could not be read. Nothing was imported.",
+          `The library has room for ${Math.max(0, 30 - library.length)} more templates.`,
         );
-      const currentLibrary: Saved[] = saved.map((item) => {
-        if (!item || typeof item.id !== "string")
-          throw Error(
-            "Your existing library could not be read. Nothing was imported.",
-          );
-        return { id: item.id, document: parseDocument(item.document) };
-      });
-      if (currentLibrary.length + documents.length > 30)
-        throw Error(
-          `The library has room for ${Math.max(0, 30 - currentLibrary.length)} more templates. Remove or export templates before importing this file.`,
-        );
-      const next = [
-        ...currentLibrary,
+      await persistLibrary([
+        ...library,
         ...documents.map((document) => ({ id: uid(), document })),
-      ];
-      localStorage.setItem(libraryKey, JSON.stringify(next));
-      setLibrary(next);
+      ]);
       setNotice(
         `Imported ${documents.length} template${documents.length === 1 ? "" : "s"} into your library.`,
       );
     } catch (e) {
       report(e);
+    } finally {
+      endLibraryWrite();
     }
   }
   async function exportTemplates(
@@ -824,14 +961,18 @@ export default function App() {
     if (!file) return;
     try {
       if (file.size > 1_000_000) throw Error("CSV must be smaller than 1 MB.");
-      setCsvRows(parseCsv(await file.text()));
+      const rows = parseCsv(await file.text());
+      validateCsvColumns(doc, rows);
+      setPdfDocuments([]);
+            setCsvRows([]); setCsvName(""); setCsvRow(0); setBatch(false);
+      setCsvRows(rows);
       setPendingWork(true);
       setCsvName(file.name);
       setCsvRow(0);
       setBatch(false);
       setPanel("data");
       setNotice(
-        "CSV loaded. Put {{column name}} in text, barcode or QR content.",
+        "CSV loaded. Matching component IDs use each row’s column values.",
       );
       setError("");
     } catch (e) {
@@ -870,6 +1011,7 @@ export default function App() {
       jobs: jobTimings,
     };
     try {
+      if (csvRows.length) validateCsvColumns(doc, csvRows);
       const jobs =
         pdfDocuments.length > 1
           ? pdfDocuments.map((d, i) => ({
@@ -1033,7 +1175,8 @@ export default function App() {
             aria-label="Save template"
             title="Save template"
             style={{ display: screen === "home" ? "none" : undefined }}
-            onClick={saveTemplate}
+            disabled={!libraryReady || libraryBusy}
+            onClick={() => void saveTemplate()}
           >
             <Save size={16} />
             <span className="hidden xl:inline">Save template</span>
@@ -1069,6 +1212,8 @@ export default function App() {
         <HomeScreen
           doc={doc}
           library={library}
+          templateLocation={templateLocation}
+          templatesBusy={!libraryReady || libraryBusy}
           connected={connection?.name ?? null}
           onResume={() => {
             setPendingWork(true);
@@ -1077,6 +1222,7 @@ export default function App() {
           onNew={(widthMm, heightMm, name) => {
             update({ ...doc, widthMm, heightMm, name, elements: [] });
             setPdfDocuments([]);
+            setCsvRows([]); setCsvName(""); setCsvRow(0); setBatch(false);
             setCsvRows([]);
             setSelectedId(null);
             setScreen("editor");
@@ -1085,6 +1231,7 @@ export default function App() {
           onLoad={(d) => {
             update(d);
             setPdfDocuments([]);
+            setCsvRows([]); setCsvName(""); setCsvRow(0); setBatch(false);
             setCsvRows([]);
             setSelectedId(null);
             setScreen("editor");
@@ -1234,6 +1381,7 @@ export default function App() {
                     });
                     setSelectedId(null);
                     setPdfDocuments([]);
+            setCsvRows([]); setCsvName(""); setCsvRow(0); setBatch(false);
                   }}
                 >
                   <FilePlus2 size={16} />
@@ -1242,11 +1390,18 @@ export default function App() {
                 <Button
                   variant="outline"
                   className="button full"
+                  disabled={!libraryReady || libraryBusy}
                   onClick={() => fileRef.current?.click()}
                 >
                   <Upload size={16} />
                   Import templates
                 </Button>
+                <p
+                  className="mb-3 break-all text-xs text-muted-foreground"
+                  aria-label="Template storage location"
+                >
+                  {templateLocation}
+                </p>
                 {library.length === 0 ? (
                   <Empty className="px-3 py-6 md:p-6">
                     <EmptyHeader>
@@ -1268,6 +1423,7 @@ export default function App() {
                           update(t.document);
                           setSelectedId(null);
                           setPdfDocuments([]);
+            setCsvRows([]); setCsvName(""); setCsvRow(0); setBatch(false);
                         }}
                       >
                         <Tag size={18} />
@@ -1280,7 +1436,8 @@ export default function App() {
                       </Button>
                       <IconButton
                         label={`Delete ${t.document.name}`}
-                        onClick={() => deleteTemplate(t.id)}
+                        disabled={!libraryReady || libraryBusy}
+                        onClick={() => void deleteTemplate(t.id)}
                       >
                         <Trash2 size={15} />
                       </IconButton>
@@ -1293,8 +1450,9 @@ export default function App() {
               <section>
                 <div className="section-title">VARIABLE DATA</div>
                 <p className="muted">
-                  Make a label for every row. Use <code>{"{{column}}"}</code> in
-                  text and codes.
+                  Match each component ID to a CSV column to make a label for
+                  every row. Legacy <code>{"{{column}}"}</code> placeholders
+                  also work.
                 </p>
                 <Button
                   variant="outline"
@@ -1303,6 +1461,25 @@ export default function App() {
                 >
                   <Upload size={16} />
                   Import CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  className="button full"
+                  onClick={() => {
+                    try {
+                      void saveDownload(
+                        `${safeName(doc.name)}-sample.csv`,
+                        new Blob([sampleCsv(doc)], {
+                          type: "text/csv;charset=utf-8",
+                        }),
+                      ).catch(report);
+                    } catch (e) {
+                      report(e);
+                    }
+                  }}
+                >
+                  <Download size={16} />
+                  Export sample CSV
                 </Button>
                 {csvRows.length > 0 ? (
                   <>
@@ -1412,6 +1589,28 @@ export default function App() {
             </div>
           )}
           <ArtworkViewport
+            caption={
+              <>
+                <span className="block text-xs font-semibold tracking-widest">
+                  PRINT PREVIEW
+                </span>
+                <span>Black &amp; white · {doc.dpi} dpi</span>
+              </>
+            }
+            creatorBar={
+              selected ? (
+                <CreatorToolbar
+                  key={selected.id}
+                  element={selected}
+                  elements={doc.elements}
+                  target={alignmentTarget}
+                  onTarget={setAlignmentTarget}
+                  onAlign={alignSelected}
+                  onChange={patchElement}
+                  onLayer={moveLayer}
+                />
+              ) : undefined
+            }
             zoom={zoom}
             onZoomChange={setZoom}
             resetKey={`${doc.widthMm}x${doc.heightMm}:${pdfPageIndex}`}
@@ -1457,6 +1656,14 @@ export default function App() {
                   >
                     Grid
                   </Button>
+                  <Button
+                    variant={snap ? "secondary" : "outline"}
+                    aria-pressed={snap}
+                    onClick={() => setSnap(!snap)}
+                    title="Snap movement and resize to 1 mm, rotation to 15°, and align to component guides. Hold Alt to bypass."
+                  >
+                    Snap
+                  </Button>
                 </div>
               </>
             }
@@ -1481,6 +1688,30 @@ export default function App() {
                     ref={canvasRef}
                     aria-label="Rendered monochrome label preview"
                   />
+                  {guides.map((guide, i) => (
+                    <div
+                      key={i}
+                      aria-hidden="true"
+                      className="absolute pointer-events-none bg-primary"
+                      style={
+                        guide.axis === "x"
+                          ? {
+                              left: `${(guide.position / doc.widthMm) * 100}%`,
+                              top: 0,
+                              bottom: 0,
+                              width: 1,
+                              zIndex: 5,
+                            }
+                          : {
+                              top: `${(guide.position / doc.heightMm) * 100}%`,
+                              left: 0,
+                              right: 0,
+                              height: 1,
+                              zIndex: 5,
+                            }
+                      }
+                    />
+                  ))}
                   {current.elements.map((el) => (
                     <div
                       key={el.id}
@@ -1512,6 +1743,32 @@ export default function App() {
                         onPointerUp={endDrag}
                         onPointerCancel={endDrag}
                       />
+                      {selectedId === el.id && (
+                        <Button
+                          variant="outline"
+                          size="icon-xs"
+                          aria-label={`Rotate ${el.kind}`}
+                          title="Drag to rotate. Snap: 15° steps. Alt: free rotation. Shift: snap even when Snap is off."
+                          className="absolute rounded-full border-primary"
+                          style={{
+                            left: "calc(50% - 12px)",
+                            top: -36,
+                            width: 24,
+                            height: 24,
+                            touchAction: "none",
+                          }}
+                          onPointerDown={(e) => {
+                            beginDrag(e, el);
+                            if (e.button === 0 && drag.current)
+                              drag.current.rotating = true;
+                          }}
+                          onPointerMove={dragMove}
+                          onPointerUp={endDrag}
+                          onPointerCancel={endDrag}
+                        >
+                          <RotateCw size={14} />
+                        </Button>
+                      )}
                       {selectedId === el.id &&
                         (["tl", "tr", "bl", "br"] as ResizeCorner[]).map(
                           (corner) => (
@@ -1556,16 +1813,13 @@ export default function App() {
                   <AlertDescription>{renderError}</AlertDescription>
                 </Alert>
               )}
-              <div className="paper-caption">
-                <span>PRINT PREVIEW</span>Black & white · {doc.dpi} dpi
-              </div>
             </div>
           </ArtworkViewport>
           <div className="canvas-footer">
             <span>
               <MousePointer2 size={14} />
               {selected
-                ? "Drag to move · corners to resize · arrows to nudge"
+                ? "Drag to move · corners resize · top handle rotates · Snap: 1 mm / 15° · Alt: free · Shift: 15°"
                 : "Select an element to edit it"}
             </span>
             <span>
@@ -1632,12 +1886,14 @@ export default function App() {
                 <FieldGroup className="grid grid-cols-2 gap-3">
                   <NumberField
                     label="X position"
+                    min={-doc.widthMm}
                     value={selected.x}
                     max={doc.widthMm}
                     onChange={(x) => patchElement({ x })}
                   />
                   <NumberField
                     label="Y position"
+                    min={-doc.heightMm}
                     value={selected.y}
                     max={doc.heightMm}
                     onChange={(y) => patchElement({ y })}
@@ -1688,11 +1944,11 @@ export default function App() {
                           })
                         }
                       >
-                        <option>Arial</option>
-                        <option>Segoe UI</option>
-                        <option>Consolas</option>
-                        <option>Courier New</option>
-                        <option>Times New Roman</option>
+                        <option value="Arial">Arial</option>
+                        <option value="Segoe UI">Segoe UI</option>
+                        <option value="Consolas">Consolas</option>
+                        <option value="Courier New">Courier New</option>
+                        <option value="Times New Roman">Times New Roman</option>
                       </FormSelect>
                     </FormField>
                     <FieldGroup className="grid grid-cols-2 gap-3">
@@ -1750,6 +2006,20 @@ export default function App() {
                     </FieldGroup>
                   </>
                 )}
+                <ComponentSettings
+                  element={selected}
+                  onChange={patchElement}
+                  onError={report}
+                />
+                <NumberField
+                  label="Rotation"
+                  value={selected.rotation}
+                  min={0}
+                  max={359}
+                  step={1}
+                  suffix="°"
+                  onChange={(rotation) => patchElement({ rotation })}
+                />
                 <div className="property-actions">
                   <Button
                     variant="outline"
@@ -2045,10 +2315,11 @@ export default function App() {
       <FormInput
         ref={fileRef}
         type="file"
+        multiple
         accept=".json"
         hidden
         onChange={(e) => {
-          void importLabel(e.target.files?.[0]);
+          void importLabel(Array.from(e.target.files ?? []));
           e.target.value = "";
         }}
       />

@@ -61,6 +61,7 @@ export function ImportFlow({
   onClose: () => void;
   onImport: (docs: LabelDocument[]) => void;
 }) {
+  const [preparation, setPreparation] = useState<{name: string; preview: string; percent: number} | null>(null);
   const [artworks, setArtworks] = useState<Artwork[]>([]);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -150,6 +151,15 @@ export function ImportFlow({
     try {
       if (!active(id)) throw Error("Preparation canceled.");
       const natural = page.getViewport({ scale: 1 });
+      const thumbnailViewport = page.getViewport({ scale: 360 / Math.max(natural.width, natural.height) });
+      const thumbnail = document.createElement("canvas");
+      thumbnail.width = Math.ceil(thumbnailViewport.width);
+      thumbnail.height = Math.ceil(thumbnailViewport.height);
+      await page.render({ canvas: thumbnail, viewport: thumbnailViewport }).promise;
+      if (!active(id)) throw Error("Preparation canceled.");
+      setPreparation({name: `${file.name} · page ${pageNumber}`, preview: thumbnail.toDataURL("image/png"), percent: 45});
+      // Paint the thumbnail before starting the expensive print-resolution render.
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
       const viewport = page.getViewport({
         scale: Math.min(
           300 / 72,
@@ -160,6 +170,7 @@ export function ImportFlow({
       canvas.width = Math.ceil(viewport.width);
       canvas.height = Math.ceil(viewport.height);
       checkBudget(pixels + canvas.width * canvas.height);
+      setPreparation(previous => previous ? {...previous, percent: 65} : previous);
       await page.render({ canvas, viewport }).promise;
       if (!active(id)) throw Error("Preparation canceled.");
       return {
@@ -210,6 +221,7 @@ export function ImportFlow({
         if (!active(id)) return;
         if (file.size > 30_000_000)
           throw Error(`${file.name} exceeds the 30 MB limit.`);
+        setPreparation({name: file.name, preview: "", percent: 10});
         const batchId = crypto.randomUUID();
         if (file.type === "application/pdf" || /\.pdf$/i.test(file.name)) {
           const pdfjs = await import("pdfjs-dist");
@@ -255,6 +267,7 @@ export function ImportFlow({
             img.src = url;
             await img.decode();
             if (!active(id)) return;
+            setPreparation({name: file.name, preview: url, percent: 65});
             if (img.width * img.height > 32_000_000)
               throw Error(
                 "Image exceeds 32 million pixels. Resize it before importing.",
@@ -296,6 +309,7 @@ export function ImportFlow({
         pdfTask.current = null;
         busyRef.current = false;
         setBusy(false);
+        setPreparation(null);
       }
     }
   }
@@ -348,6 +362,7 @@ export function ImportFlow({
         pdfTask.current = null;
         busyRef.current = false;
         setBusy(false);
+        setPreparation(null);
       }
     }
   }
@@ -704,7 +719,19 @@ export function ImportFlow({
             </p>
           </aside>
           <div className="import-preview-panel">
-            {current ? (
+            {busy && preparation ? (
+              <div className="relative flex min-h-96 flex-1 items-center justify-center overflow-hidden rounded-lg bg-muted/50" aria-busy="true">
+                {preparation.preview && <img src={preparation.preview} alt="Preparing artwork preview" className="max-h-96 max-w-full object-contain opacity-50 blur-sm" />}
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/30 p-6">
+                  <div role="progressbar" aria-label="Preparing artwork" aria-valuemin={0} aria-valuemax={100} aria-valuenow={preparation.percent} className="relative size-20 rounded-full bg-background/90 shadow">
+                    <svg viewBox="0 0 80 80" className="size-20 -rotate-90" aria-hidden="true"><circle cx="40" cy="40" r="34" fill="none" stroke="currentColor" strokeWidth="5" className="text-muted"/><circle cx="40" cy="40" r="34" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeDasharray="213.63" strokeDashoffset={213.63 * (1 - preparation.percent / 100)} className="text-primary transition-all"/></svg>
+                    <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold">{preparation.percent}%</span>
+                  </div>
+                  <strong className="max-w-full break-all text-center">{preparation.name}</strong>
+                  <span role="status" className="text-sm">Preparing print-resolution artwork…</span>
+                </div>
+              </div>
+            ) : current ? (
               <>
                 <div className="import-preview-label">
                   {current.name}

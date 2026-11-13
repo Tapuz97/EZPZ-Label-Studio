@@ -7,6 +7,13 @@ export type LabelElement = {
   width: number;
   height: number;
   content: string;
+  dataId?: string;
+  qrBackground?: boolean;
+  qrLogo?: string;
+  qrShowLogo?: boolean;
+  barcodeShowText?: boolean;
+  strokeWidth?: number;
+  crop?: { x: number; y: number; width: number; height: number };
   fontSize: number;
   fontFamily:
     "Arial" | "Segoe UI" | "Consolas" | "Courier New" | "Times New Roman";
@@ -160,13 +167,12 @@ export function parseDocument(input: unknown): LabelDocument {
       ) ||
       typeof e.content !== "string" ||
       e.content.length > 8_000_000 ||
-      !numberIn(e.x, 0, 216) ||
-      !numberIn(e.y, 0, 500) ||
+      !numberIn(e.x, -216, 216) ||
+      !numberIn(e.y, -500, 500) ||
       !numberIn(e.width, 0.1, 216) ||
       !numberIn(e.height, 0.1, 500) ||
       !numberIn(e.fontSize, 2, 144) ||
-      !numberIn(e.rotation, 0, 270) ||
-      ![0, 90, 180, 270].includes(e.rotation as number) ||
+      !numberIn(e.rotation, 0, 360) ||
       typeof e.bold !== "boolean" ||
       !["left", "center", "right"].includes(e.align as string) ||
       !["auto", "ltr", "rtl"].includes(e.direction as string)
@@ -197,6 +203,19 @@ export function parseDocument(input: unknown): LabelDocument {
       )
     )
       throw Error("Unsupported barcode format.");
+    if (e.dataId !== undefined && (typeof e.dataId !== "string" || e.dataId.length > 120 || /[\r\n]/.test(e.dataId)))
+      throw Error("Component IDs must be at most 120 characters on one line.");
+    for (const key of ["qrBackground", "qrShowLogo", "barcodeShowText"])
+      if (e[key] !== undefined && typeof e[key] !== "boolean") throw Error("Invalid component setting.");
+    if (e.strokeWidth !== undefined && !numberIn(e.strokeWidth, 0.05, 10)) throw Error("Thickness must be 0.05–10 mm.");
+    if (e.qrLogo !== undefined && (typeof e.qrLogo !== "string" || e.qrLogo.length > 2_000_000 || (e.qrLogo && !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(e.qrLogo))))
+      throw Error("QR logos must be embedded PNG, JPEG or WebP images.");
+    if (e.crop !== undefined) {
+      if (!e.crop || typeof e.crop !== "object") throw Error("Invalid image crop.");
+      const r = e.crop as Record<string, unknown>;
+      if (!numberIn(r.x,0,1) || !numberIn(r.y,0,1) || !numberIn(r.width,0.01,1) || !numberIn(r.height,0.01,1) || r.x+r.width>1.000001 || r.y+r.height>1.000001)
+        throw Error("Image crop must stay inside the image.");
+    }
     ids.add(e.id);
     return {
       id: e.id,
@@ -213,6 +232,13 @@ export function parseDocument(input: unknown): LabelDocument {
       align: e.align,
       direction: e.direction,
       rotation: e.rotation,
+      ...(e.dataId !== undefined ? {dataId: (e.dataId as string).trim()} : {}),
+      ...(e.qrBackground !== undefined ? {qrBackground: e.qrBackground} : {}),
+      ...(e.qrLogo !== undefined ? {qrLogo: e.qrLogo} : {}),
+      ...(e.qrShowLogo !== undefined ? {qrShowLogo: e.qrShowLogo} : {}),
+      ...(e.barcodeShowText !== undefined ? {barcodeShowText: e.barcodeShowText} : {}),
+      ...(e.strokeWidth !== undefined ? {strokeWidth: e.strokeWidth} : {}),
+      ...(e.crop !== undefined ? {crop: e.crop} : {}),
     } as LabelElement;
   });
   if (d.protocol !== undefined && d.protocol !== "zpl" && d.protocol !== "tspl")
@@ -289,4 +315,34 @@ export function monochrome(data: Uint8ClampedArray, threshold: number): void {
     data[i] = data[i + 1] = data[i + 2] = v;
     data[i + 3] = 255;
   }
+}
+
+/** User-facing IDs are CSV bindings, independent of stable editor identity. */
+export function componentContent(element: LabelElement, row: Record<string,string>): string {
+  const key = element.dataId?.trim();
+  if (["text","qr","barcode"].includes(element.kind) && key && Object.hasOwn(row,key)) return row[key];
+  return substitute(element.content,row);
+}
+export function requiredCsvColumns(doc: LabelDocument): string[] {
+  const keys = new Set<string>();
+  for (const e of doc.elements) {
+    if (!["text","qr","barcode"].includes(e.kind)) continue;
+    if (e.dataId?.trim()) keys.add(e.dataId.trim());
+    else for (const match of e.content.matchAll(/\{\{([^{}]+)\}\}/g)) keys.add(match[1].trim());
+  }
+  return [...keys];
+}
+export function validateCsvColumns(doc: LabelDocument, rows: Record<string,string>[]): void {
+  const required = requiredCsvColumns(doc);
+  for (const [index,row] of rows.entries()) {
+    const missing = required.filter(key=>!Object.hasOwn(row,key));
+    if (missing.length) throw Error(`CSV row ${index+1} is missing columns: ${missing.join(", ")}.`);
+  }
+}
+export function sampleCsv(doc: LabelDocument): string {
+  const columns = requiredCsvColumns(doc);
+  if (!columns.length) throw Error("Assign a Component ID to text, QR or barcode elements first.");
+  const cell = (value:string) => `"${value.replace(/"/g,'""')}"`;
+  const examples = columns.map(key=>doc.elements.find(e=>e.dataId?.trim()===key)?.content || "Example");
+  return "\uFEFF" + columns.map(cell).join(",") + "\r\n" + examples.map(cell).join(",") + "\r\n";
 }

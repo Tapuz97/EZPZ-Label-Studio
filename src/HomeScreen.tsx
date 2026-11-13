@@ -58,6 +58,8 @@ type Saved = { id: string; document: LabelDocument };
 type HomeScreenProps = {
   doc: LabelDocument;
   library: Saved[];
+  templateLocation?: string;
+  templatesBusy?: boolean;
   connected: string | null;
   onResume: () => void;
   onNew: (width: number, height: number, name: string) => void;
@@ -140,6 +142,8 @@ function ActionCard({
 export function HomeScreen({
   doc,
   library,
+  templateLocation = "This browser’s storage (on this device)",
+  templatesBusy = false,
   connected,
   onResume,
   onNew,
@@ -281,18 +285,21 @@ export function HomeScreen({
               <p className="mt-1 text-sm text-muted-foreground">
                 Stored on this computer, ready to reuse.
               </p>
+              <p className="mt-1 max-w-xl break-all text-xs text-muted-foreground" aria-live="polite">
+                {templatesBusy ? "Updating template library…" : templateLocation}
+              </p>
             </div>
             <Badge variant="secondary">{library.length}</Badge>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onImportTemplates}>
+            <Button variant="outline" onClick={onImportTemplates} disabled={templatesBusy}>
               <Upload data-icon="inline-start" />
               Import
             </Button>
             <Button
               variant="outline"
               onClick={beginExport}
-              disabled={!library.length}
+              disabled={templatesBusy || !library.length}
             >
               <Download data-icon="inline-start" />
               Export
@@ -356,7 +363,7 @@ export function HomeScreen({
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent className="ml-auto w-auto shrink-0">
-              <Button variant="outline" onClick={onImportTemplates}>
+              <Button variant="outline" onClick={onImportTemplates} disabled={templatesBusy}>
                 <Upload data-icon="inline-start" />
                 Import templates
               </Button>
@@ -575,7 +582,7 @@ export function HomeScreen({
               Cancel
             </Button>
             <Button
-              disabled={!selectedCount || exportBusy}
+              disabled={templatesBusy || !selectedCount || exportBusy}
               onClick={() => void exportSelected()}
             >
               {exportBusy ? (

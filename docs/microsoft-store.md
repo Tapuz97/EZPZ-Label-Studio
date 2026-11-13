@@ -47,8 +47,8 @@ versioned x64 MSIX under `output/microsoft-store` and validates it with the SDK'
 It does not install the package or alter Windows security settings.
 The script defaults to the reserved identity in `packaging/store-identity.json`;
 its identity parameters can be overridden explicitly for a different product.
-The Store package version is **1.0.1.0**, tracked separately from the application's
-0.5.1 version in that identity file. Microsoft requires a nonzero package major
+The Store package version is **1.1.0.0**, tracked separately from the application's
+0.6.0 version in that identity file. Microsoft requires a nonzero package major
 and reserves the final component as 0. Increment `packageVersion` before future
 Store submissions; `-PackageVersion` can override it explicitly.
 
@@ -100,7 +100,7 @@ are of the shared web interface and are not substitutes for that test.
 Confirm the support/privacy URLs are publicly reachable before submitting.
 Review product claims: most EZlabel-family BLE printers are the intended target,
 but only DB403 printing on Windows and Chrome/Windows 11 has been physically verified. Niimbot, iPrint,
-Labelife, Nelko and Jadens support is a future investigation, not a feature claim.
+Labelife, Nelko, Jadens, Pixmate, and other families support is a future investigation, not a feature claim.
 
 ## 5. Submit for certification
 

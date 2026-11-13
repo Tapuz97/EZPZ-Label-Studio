@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { initialDocument } from "./model";
 import {
   parseTemplateFile,
+  parseTemplateFiles,
   templateBundle,
   templateBundleFormat,
 } from "./templates";
@@ -57,5 +58,22 @@ describe("portable template files", () => {
     const bundle = templateBundle([original]);
     bundle.templates[0].elements[0].content = "Changed after export";
     expect(original.elements[0].content).not.toBe("Changed after export");
+  });
+});
+
+
+describe("multiple template file imports", () => {
+  const file = (name: string, value: unknown) => ({ name, size: 100, text: async () => JSON.stringify(value) }) as File;
+  it("combines single files and bundles after complete validation", async () => {
+    const a = initialDocument(), b = { ...initialDocument(), name: "B" };
+    expect(await parseTemplateFiles([file("a.json", a), file("b.json", templateBundle([b]))])).toEqual([a, b]);
+  });
+  it("rejects the entire selection when a later file is invalid", async () => {
+    await expect(parseTemplateFiles([file("good.json", initialDocument()), file("bad.json", { version: -1 })])).rejects.toThrow(/bad.json/);
+  });
+  it("enforces total template and byte budgets", async () => {
+    const bundle = templateBundle(Array.from({ length: 30 }, initialDocument));
+    await expect(parseTemplateFiles([file("bundle.json", bundle), file("extra.json", initialDocument())])).rejects.toThrow(/more than 30/);
+    await expect(parseTemplateFiles([{ ...file("large.json", initialDocument()), size: 36_000_001 } as File])).rejects.toThrow(/36 MB/);
   });
 });

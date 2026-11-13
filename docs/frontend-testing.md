@@ -1,5 +1,39 @@
 # Frontend validation
 
+## Version 0.6.0 — final editor feature pass
+
+- 69 frontend tests pass, including CSV component IDs and required headers,
+  sample CSV round trips, imported settings, rotated geometry, proportional text
+  resizing, template bulk validation and storage error preservation.
+- Actual Chromium (Browser plugin unavailable) exercised Component ID editing,
+  sample CSV download, two-row CSV import, multi-file template import and reload
+  persistence. No page errors occurred.
+- Rendered pointer interactions verified proportional text resizing, horizontal
+  and vertical centering, rotated alignment, draggable rotation with Shift steps,
+  snapping guides and cleanup after drag. RTL/right alignment and font selection
+  were exercised through the controls.
+- Browser pixel assertions checked text alignment/direction, QR transparent
+  background layering and center logo toggles, barcode text visibility, line and
+  border thickness, cropping, arbitrary rotation and distinct CSV-row output.
+- PDF import showed a blurred low-resolution page and circular preparation
+  progress before the full raster finished. Applying pages 1–2 and opening the
+  workspace succeeded. PDF decoding/rasterization is done during import; the
+  bounded prepared-label cache reuses unchanged previews for printing. Progress
+  percentages indicate preparation phases, not network upload bytes.
+- Final follow-up UI checks passed the contextual icon toolbar at 1024x720,
+  all six component rotation handles (Snap/Alt/Shift policies), 1 mm resize
+  snapping, wheel zoom in both previews and unchanged preview-caption geometry
+  while zooming. Fields have 4 px label gaps and 12 px bottom padding.
+- Visual crop pointer tests passed corner resizing, moving, Cancel preservation,
+  Apply commit and Reset. The source remains visible with excluded areas shaded.
+- Switching templates clears stale CSV batches; importing CSV clears the PDF
+  queue, so only the currently selected data workflow is printed.
+- New settings use shared frontend/rendering code in Windows and web. QR logos
+  use high error correction and a small center footprint, but physical decoding
+  with arbitrary logos, long CSV print batches and other printer models remain
+  unverified. Current supported distributions are Windows x64 and the web app;
+  no macOS/Linux/iOS Bluetooth certification is claimed.
+
 ## Version 0.5.1 — browser transfer performance
 
 - All 47 frontend tests, TypeScript and production builds pass. Tests cover

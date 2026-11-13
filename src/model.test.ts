@@ -6,6 +6,7 @@ import {
   parseCsv,
   parseDocument,
   substitute,
+  makeElement, componentContent, requiredCsvColumns, validateCsvColumns, sampleCsv,
 } from "./model";
 describe("label documents", () => {
   it("round-trips a validated label", () => {
@@ -97,5 +98,31 @@ describe("monochrome raster", () => {
     expect(Array.from(pixels)).toEqual([
       255, 255, 255, 255, 0, 0, 0, 255, 255, 255, 255, 255, 0, 0, 0, 255,
     ]);
+  });
+});
+
+describe("component settings and CSV bindings",()=>{
+  it("maps distinct component IDs and shared IDs without changing stable editor IDs",()=>{
+    const name={...makeElement("text"),dataId:"name",content:"Fallback"};
+    const item={...makeElement("qr"),dataId:"item"};
+    expect(componentContent(name,{name:"שלום",item:"42"})).toBe("שלום");
+    expect(componentContent(item,{name:"שלום",item:"42"})).toBe("42");
+    expect(componentContent(name,{name:""})).toBe("");
+    expect(componentContent(name,{})).toBe("Fallback");
+    expect(name.id).not.toBe(name.dataId);
+  });
+  it("exports quoted required columns and validates all CSV rows",()=>{
+    const doc={...initialDocument(),elements:[{...makeElement("text"),dataId:'name,part',content:'A "part"'},{...makeElement("qr"),dataId:"item",content:"https://example.com"},{...makeElement("barcode"),dataId:"item"},{...makeElement("text"),content:"{{note}}"}]};
+    expect(requiredCsvColumns(doc)).toEqual(['name,part','item','note']);
+    const rows=parseCsv(sampleCsv(doc));
+    expect(rows[0]['name,part']).toBe('A "part"');
+    expect(()=>validateCsvColumns(doc,rows)).not.toThrow();
+    expect(()=>validateCsvColumns(doc,[rows[0],{item:"x"}])).toThrow("row 2");
+  });
+  it("round trips modern settings and rejects malformed imported settings",()=>{
+    const e={...makeElement("qr"),rotation:37.5,dataId:"item",qrBackground:false,qrShowLogo:true,qrLogo:"data:image/png;base64,YQ==",barcodeShowText:false,strokeWidth:1.5,crop:{x:0.1,y:0.2,width:0.8,height:0.7}};
+    const doc={...initialDocument(),elements:[e]};
+    expect(parseDocument(doc).elements[0]).toEqual(e);
+    for(const patch of [{qrLogo:"https://example.com/logo.png"},{qrBackground:"no"},{strokeWidth:0},{crop:{x:0.5,y:0,width:0.8,height:1}},{rotation:-1},{dataId:"bad\ncolumn"}])expect(()=>parseDocument({...doc,elements:[{...e,...patch}]})).toThrow();
   });
 });

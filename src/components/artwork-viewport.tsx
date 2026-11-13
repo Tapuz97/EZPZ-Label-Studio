@@ -11,6 +11,8 @@ type Props = {
   zoom?: number;
   onZoomChange?: (zoom: number) => void;
   toolbar?: ReactNode;
+  creatorBar?: ReactNode;
+  caption?: ReactNode;
   grid?: boolean;
 };
 
@@ -22,6 +24,8 @@ export function ArtworkViewport({
   zoom: controlledZoom,
   onZoomChange,
   toolbar,
+  creatorBar,
+  caption,
   grid = false,
 }: Props) {
   const [localZoom, setLocalZoom] = useState(100);
@@ -71,6 +75,31 @@ export function ArtworkViewport({
     updateFit();
     return () => observer.disconnect();
   }, []);
+  useEffect(() => {
+    const element = surface.current;
+    if (!element) return;
+    const wheel = (event: WheelEvent) => {
+      if (!event.deltaY) return;
+      event.preventDefault();
+      const next = Math.max(
+        50,
+        Math.min(200, zoom + (event.deltaY < 0 ? 25 : -25)),
+      );
+      if (next === zoom) return;
+      const rect = element.getBoundingClientRect();
+      const x = event.clientX - rect.left - rect.width / 2;
+      const y = event.clientY - rect.top - rect.height / 2;
+      const ratio = next / zoom;
+      setPan((previous) => ({
+        x: x - (x - previous.x) * ratio,
+        y: y - (y - previous.y) * ratio,
+      }));
+      setZoom(next);
+    };
+    // A non-passive listener prevents the page/WebView itself from scrolling.
+    element.addEventListener("wheel", wheel, { passive: false });
+    return () => element.removeEventListener("wheel", wheel);
+  }, [zoom, onZoomChange]);
   function finish(event: PointerEvent<HTMLDivElement>) {
     if (gesture.current?.pointerId !== event.pointerId) return;
     gesture.current = null;
@@ -130,6 +159,9 @@ export function ArtworkViewport({
           </Button>
         </div>
       </div>
+      {creatorBar && (
+        <div className="shrink-0 border-b bg-card px-3 py-2">{creatorBar}</div>
+      )}
       <div
         className="relative grid min-h-36 min-w-0 flex-1 place-items-center overflow-hidden"
         data-artwork-pan-surface
@@ -184,8 +216,14 @@ export function ArtworkViewport({
           {children}
         </div>
       </div>
+      {caption && (
+        <div className="shrink-0 bg-card px-3 py-2 text-center text-xs text-muted-foreground">
+          {caption}
+        </div>
+      )}
       <p className="m-0 shrink-0 border-t bg-card px-3 py-2 text-center text-xs text-muted-foreground">
-        Middle-button drag to pan · Zoom changes only the preview
+        Scroll to zoom · Middle-button drag to pan · Zoom changes only the
+        preview
       </p>
     </div>
   );

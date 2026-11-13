@@ -19,7 +19,11 @@ export function resizeElement(
     localY = -s * dxMm + c * dyMm;
   let width = clamp(element.width + sx * localX, 0.5, labelWidth);
   let height = clamp(element.height + sy * localY, 0.5, labelHeight);
-  if (element.kind === "image") {
+  if (
+    element.kind === "image" ||
+    element.kind === "text" ||
+    element.kind === "qr"
+  ) {
     const scaleX = width / element.width,
       scaleY = height / element.height;
     const requestedScale =
@@ -42,6 +46,9 @@ export function resizeElement(
     element.height / 2 +
     (sx * (width - element.width) * s + sy * (height - element.height) * c) / 2;
   return {
+    ...(element.kind === "text"
+      ? { fontSize: clamp((element.fontSize * width) / element.width, 2, 144) }
+      : {}),
     width,
     height,
     x: clamp(centerX - width / 2, 0, labelWidth - width),

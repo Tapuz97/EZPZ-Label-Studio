@@ -1,5 +1,20 @@
 # Native Windows validation — 2026-11-13
 
+## Version 0.6.0 — shared editor features and disk templates
+
+- 45 Rust release tests pass, including persistent template replacement,
+  read-only installation fallback, permission changes and corrupt-file preservation.
+- Windows NSIS and web builds pass. Store package version is 1.1.0.0.
+- An isolated native release confirmed the registered storage command selects
+  its executable's templates directory. Native save/reload UI checks are recorded
+  below when completed; filesystem fallback cases are exercised by native tests.
+- Shared frontend checks cover CSV, editing, cropping, snapping, PDF preparation
+  and zoom as detailed in frontend-testing.md. No new physical labels were sent
+  in this feature pass. Existing DB403 output confirmation is from 0.5.1.
+- Remaining distribution checks: clean installer install/uninstall, signed MSIX
+  installation/Store flight, WACK and Store certification. Custom QR logos need
+  physical scanning; other printer families require hardware tests.
+
 ## Version 0.5.1 — packed raster bridge and live transfer
 
 - All 41 native release tests and Rust formatting checks pass. Packed-raster

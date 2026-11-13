@@ -38,3 +38,21 @@ export function templateBundle(templates: LabelDocument[]) {
     templates: parseTemplateList(templates),
   };
 }
+
+/** Read and validate every selected file before the caller commits any changes. */
+export async function parseTemplateFiles(files: readonly File[]): Promise<LabelDocument[]> {
+  if (!files.length || files.length > 30) throw Error("Choose 1–30 template files.");
+  if (files.reduce((sum, file) => sum + file.size, 0) > 36_000_000)
+    throw Error("Selected template files exceed 36 MB. Import fewer files at once.");
+  const documents: LabelDocument[] = [];
+  for (const file of files) {
+    if (file.size > 12_000_000) throw Error(`${file.name}: template file exceeds 12 MB.`);
+    try {
+      documents.push(...parseTemplateFile(JSON.parse(await file.text())));
+    } catch (error) {
+      throw Error(`${file.name}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (documents.length > 30) throw Error("The selected files contain more than 30 templates.");
+  }
+  return documents;
+}
