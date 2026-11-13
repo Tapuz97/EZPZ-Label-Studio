@@ -1,5 +1,12 @@
 <div align="center">
   <p><img src="brandkit/promotional-art/EZPZ-titled-hero-1920x1080.png" width="1000" alt="EZPZ Label Studio — blue printer icon with barcode, shipping, and QR label artwork"></p>
+  <p>
+    <a href="https://github.com/Tapuz97/EZPZ-Label-Studio/releases/latest"><img src="https://img.shields.io/github/v/release/Tapuz97/EZPZ-Label-Studio?style=flat-square&amp;label=release&amp;labelColor=182233&amp;color=2563eb" alt="Latest GitHub release"></a>
+    <a href="https://github.com/Tapuz97/EZPZ-Label-Studio/actions/workflows/pages.yml"><img src="https://img.shields.io/github/actions/workflow/status/Tapuz97/EZPZ-Label-Studio/pages.yml?branch=main&amp;style=flat-square&amp;label=web%20build&amp;labelColor=182233" alt="Web build status"></a>
+    <a href="https://github.com/Tapuz97/EZPZ-Label-Studio/releases/latest"><img src="https://img.shields.io/badge/Windows-x64-2563eb?style=flat-square&amp;labelColor=182233" alt="Windows x64"></a>
+    <a href="https://tapuz97.github.io/EZPZ-Label-Studio/"><img src="https://img.shields.io/badge/Web-editor-2563eb?style=flat-square&amp;labelColor=182233" alt="Open the web editor"></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/licence-PolyForm%20Noncommercial%201.0.0-2563eb?style=flat-square&amp;labelColor=182233" alt="PolyForm Noncommercial 1.0.0 licence"></a>
+  </p>
   <p>A desktop workspace for your Bluetooth label printer.<br>Create a design, prepare your artwork, or turn a CSV into a batch of labels.</p>
   <p><a href="https://get.microsoft.com/installer/download/9PNR3K65GQFL?referrer=appbadge" target="_self"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Download EZPZ Label Studio from the Microsoft Store"></a></p>
   <p><a href="https://tapuz97.github.io/EZPZ-Label-Studio/"><strong>Open the web editor</strong></a> &nbsp; · &nbsp; <a href="https://github.com/Tapuz97/EZPZ-Label-Studio/releases/latest">Windows downloads</a> &nbsp; · &nbsp; <a href="examples/templates/sample-templates.json">Sample templates</a></p>
