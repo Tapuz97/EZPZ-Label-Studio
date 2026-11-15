@@ -288,7 +288,7 @@ export class NiimbotSession {
       rows = d110RowFrames(raster, this.identity.printTask!);
     const encodingMs = performance.now() - encodingStarted;
     const start = [0, 1, 0, 0, 0, 0, 0];
-    const size = [raster.height >> 8, raster.height & 255, 0, 96, 0, 1];
+    const size = [raster.height >> 8, raster.height & 255, 0, raster.width, 0, 1];
     // Upload is only part of completion. Reserve progress for the printer's
     // physical page counter and closing ACK; 100% is never just bytes written.
     const total = job.copies * 1000,

@@ -106,7 +106,7 @@ export function niimbotStockCode(data: Uint8Array): string | undefined {
 }
 
 export type D110Raster = {
-  width: 96;
+  width: 96 | 120;
   height: number;
   rotated: boolean;
   data: Uint8Array<ArrayBuffer>;
@@ -126,26 +126,25 @@ export function prepareD110Raster(job: WebPrintJob): D110Raster {
   const height = rotated ? job.widthPx : job.heightPx;
   if (width > 120 || height > Math.round((100 * 203) / 25.4))
     throw Error(
-      "D110 artwork must fit 15 mm stock across its 96-dot printhead and 100 mm feed length. Rotate a landscape label if needed.",
+      "D110 artwork must fit paper up to 15 mm wide and 100 mm long. Rotate a landscape label if needed.",
     );
   const source = monochrome(job),
     sourceStride = Math.ceil(job.widthPx / 8);
-  const data = new Uint8Array(12 * height);
-  const crop = Math.max(0, Math.floor((width - 96) / 2)),
-    pad = Math.max(0, Math.floor((96 - width) / 2));
+  // Preserve full-width artwork. Model-table head recommendations do not crop
+  // pixels or impose blank margins. Both packet widths have three byte groups.
+  const outputWidth = width > 96 ? 120 : 96;
+  const stride = outputWidth / 8;
+  const data = new Uint8Array(stride * height);
+  const pad = Math.floor((outputWidth - width) / 2);
   for (let y = 0; y < job.heightPx; y++)
     for (let x = 0; x < job.widthPx; x++) {
       if (!(source[y * sourceStride + (x >> 3)] & (0x80 >> (x & 7)))) continue;
       const cross = rotated ? job.heightPx - 1 - y : x;
-      const nx = cross - crop + pad;
-      if (nx < 0 || nx >= 96)
-        throw Error(
-          "D110 has a 12 mm printable band on 15 mm stock. Keep about 1.5 mm blank on each side; this artwork has content outside the printable band.",
-        );
+      const nx = cross + pad;
       const ny = rotated ? x : y;
-      data[ny * 12 + (nx >> 3)] |= 0x80 >> (nx & 7);
+      data[ny * stride + (nx >> 3)] |= 0x80 >> (nx & 7);
     }
-  return { width: 96, height, rotated, data };
+  return { width: outputWidth, height, rotated, data };
 }
 
 export type NiimbotPrintTask = "legacy" | "b1";
@@ -154,19 +153,20 @@ export function d110RowFrames(
   task: NiimbotPrintTask = "b1",
 ) {
   const frames: Uint8Array<ArrayBuffer>[] = [];
+  const stride = raster.width / 8;
   for (let row = 0; row < raster.height;) {
-    const bytes = raster.data.slice(row * 12, row * 12 + 12);
+    const bytes = raster.data.slice(row * stride, (row + 1) * stride);
     let repeat = 1;
     while (
       repeat < 200 &&
       row + repeat < raster.height &&
-      bytes.every((b, i) => b === raster.data[(row + repeat) * 12 + i])
+      bytes.every((b, i) => b === raster.data[(row + repeat) * stride + i])
     )
       repeat++;
     const counts = [0, 0, 0];
     for (let i = 0; i < bytes.length; i++)
       for (let mask = 1; mask <= 128; mask <<= 1)
-        if (bytes[i] & mask) counts[Math.floor(i / 4)]++;
+        if (bytes[i] & mask) counts[Math.floor(i / (stride / 3))]++;
     const count = counts[0] + counts[1] + counts[2];
     frames.push(
       count === 0

@@ -123,7 +123,7 @@ pub struct Prepared {
     pub density: u8,
     pub copies: u16,
 }
-/// Original D110 wire variant: counts describe three consecutive 32-dot parts.
+/// Original D110 wire variant: counts describe three equal byte groups.
 /// Wire facts: NIIMBOT Community Wiki PrintBitmapRow and MultiMote's documented
 /// D110 task / packet count definitions. No upstream implementation is copied.
 pub fn legacy_rows(rows: &[Vec<u8>]) -> Result<Vec<Vec<u8>>, String> {
@@ -137,13 +137,13 @@ pub fn legacy_rows(rows: &[Vec<u8>]) -> Result<Vec<Vec<u8>>, String> {
             if row.command == 0x84 && row.data.len() == 3 {
                 return Ok(bytes.clone());
             }
-            if row.command != 0x85 || row.data.len() != 18 {
-                return Err("Legacy D110 requires complete 96-dot monochrome rows.".into());
+            if row.command != 0x85 || ![18, 21].contains(&row.data.len()) {
+                return Err("Legacy D110 requires complete monochrome rows.".into());
             }
             let mut payload = row.data[..2].to_vec();
             payload.extend(
                 row.data[6..]
-                    .chunks_exact(4)
+                    .chunks_exact((row.data.len() - 6) / 3)
                     .map(|part| part.iter().map(|b| b.count_ones() as u8).sum::<u8>()),
             );
             payload.push(row.data[5]);
@@ -164,15 +164,14 @@ pub fn prepare(job: &RasterPrintJob) -> Result<Prepared, String> {
         (job.width_px, job.height_px)
     };
     if width > 120 || height > (100.0_f64 * 203.0 / 25.4).round() as usize {
-        return Err("D110 requires stock no wider than 15 mm and no longer than 100 mm. Its printable head is 12 mm (96 dots). Choose compatible stock or rotate the design.".into());
+        return Err("D110 requires paper no wider than 15 mm and no longer than 100 mm. Choose compatible stock or rotate the design.".into());
     }
     let input_stride = job.width_px.div_ceil(8);
-    // D110 always receives its complete 96-dot head width. Center smaller
-    // artwork using white padding. On 15mm stock remove only confirmed white
-    // margins, never resample or discard a black pixel.
-    let pad = 96usize.saturating_sub(width) / 2;
-    let crop = width.saturating_sub(96) / 2;
-    let width = 96usize;
+    // Keep every artwork pixel, including the edges of 15mm stock. Model-table
+    // head recommendations are advisory; no cropping or resampling is applied.
+    let output_width = if width > 96 { 120 } else { 96 };
+    let pad = (output_width - width) / 2;
+    let width = output_width;
     let stride = width.div_ceil(8);
     let mut raster = vec![0u8; stride * height];
     for y in 0..job.height_px {
@@ -183,10 +182,7 @@ pub fn prepare(job: &RasterPrintJob) -> Result<Prepared, String> {
                 } else {
                     (x, y)
                 };
-                if dx < crop || dx >= crop + 96 {
-                    return Err("The artwork reaches the D110's unprintable side margins. Leave 1.5 mm blank on each side of 15 mm stock, or resize the artwork explicitly. No print data was sent.".into());
-                }
-                let dx = dx - crop + pad;
+                let dx = dx + pad;
                 raster[dy * stride + dx / 8] |= 0x80 >> (dx % 8);
             }
         }
@@ -339,19 +335,24 @@ mod tests {
     #[test]
     fn fifteen_mm_stock_preserves_all_black_pixels_in_both_orientations() {
         let mut portrait = job(120, 240);
-        portrait.raster[1] = 0x08; // x12 → head x0.
+        portrait.raster[0] = 0x80;
+        portrait.raster[14] = 1;
         let p = prepare(&portrait).unwrap();
-        assert_eq!((p.width, p.height), (96, 240));
+        assert_eq!((p.width, p.height), (120, 240));
         let row = Parser::default().feed(&p.rows[0]);
         assert_eq!(row[0].data[6], 0x80);
-        portrait.raster[1] |= 0x10; // x11 would be lost.
-        assert!(prepare(&portrait).unwrap_err().contains("margins"));
+        assert_eq!(row[0].data[20], 1);
+        let legacy = legacy_rows(&p.rows).unwrap();
+        let row = Parser::default().feed(&legacy[0]);
+        assert_eq!(&row[0].data[..6], &[0, 0, 1, 0, 1, 1]);
+        assert_eq!(row[0].data.len(), 21);
         let mut landscape = job(240, 120);
-        landscape.raster[107 * 30] = 0x80;
+        landscape.raster[0] = 0x80;
+        landscape.raster[119 * 30] = 0x80;
         let p = prepare(&landscape).unwrap();
         let row = Parser::default().feed(&p.rows[0]);
         assert_eq!(row[0].data[6], 0x80);
-        landscape.raster[108 * 30] = 0x80;
-        assert!(prepare(&landscape).is_err());
+        assert_eq!(row[0].data[20], 1);
+        assert_eq!((p.width, p.height), (120, 240));
     }
 }

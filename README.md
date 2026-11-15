@@ -103,8 +103,8 @@ A Bluetooth name or successful connection does not prove print compatibility.
 Classic Bluetooth SPP/RFCOMM is not implemented. When a printer does not report
 its DPI, print width, or loaded stock, choose the correct settings manually.
 
-The D110 uses a 12 mm print area on paper up to 15 mm wide. The editor preserves
-artwork scale and rejects content outside that print area. Its RFID roll code
+The D110 sends the full artwork width on paper up to 15 mm wide, without a
+mandatory 12 mm band, margin rejection, cropping or automatic scaling. Its RFID roll code
 can be matched to NIIMBOT's stock catalog; cached sizes work offline. A new
 catalog lookup sends only the stock product code, without artwork or the roll's
 unique serial number. Unknown stock remains manually configurable.

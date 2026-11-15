@@ -31,7 +31,8 @@ export function framePlacement(
   const cap = printer?.capabilities;
   const dpi =
     cap?.dpi && Number.isFinite(cap.dpi) && cap.dpi > 0 ? cap.dpi : label.dpi;
-  const headMm = Math.min(
+  // Do not impose the D110 model-table recommendation on frame placement.
+  const headMm = printer?.protocol === "niimbot" ? Infinity : Math.min(
     cap?.maxWidthMm && Number.isFinite(cap.maxWidthMm) && cap.maxWidthMm > 0
       ? cap.maxWidthMm
       : Infinity,

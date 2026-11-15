@@ -25,22 +25,17 @@ describe("frame insertion placement", () => {
   it.each([
     { widthMm: 15, heightMm: 30 },
     { widthMm: 30, heightMm: 15 },
-  ])("keeps frame inside a centered12mm head on15mm paper: %o", (size) => {
+  ])("uses ordinary paper margins without the D110 model recommendation: %o", (size) => {
     const result = framePlacement(
       { ...size, dpi: 203 },
       { protocol: "niimbot", capabilities: { maxWidthDots: 96, dpi: 203 } },
     );
-    const head = (96 * 25.4) / 203;
-    const crossInset = size.widthMm === 15 ? result.x : result.y;
-    const crossSize = size.widthMm === 15 ? result.width : result.height;
-    expect(crossInset).toBeCloseTo((15 - head) / 2 + 1);
-    expect(crossSize).toBeCloseTo(head - 2);
-    expect(size.widthMm === 15 ? result.y : result.x).toBe(1);
+    expect(result).toEqual({ x: 1, y: 1, width: size.widthMm - 2, height: size.heightMm - 2 });
   });
   it("uses physical printerDPI when document resolution differs", () => {
     const result = framePlacement(
       { widthMm: 15, heightMm: 30, dpi: 300 },
-      { protocol: "niimbot", capabilities: { maxWidthDots: 96, dpi: 203 } },
+      { protocol: "tspl", capabilities: { maxWidthDots: 96, dpi: 203 } },
     );
     expect(result.width).toBeCloseTo((96 * 25.4) / 203 - 2);
   });

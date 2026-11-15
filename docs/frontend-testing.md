@@ -1,5 +1,18 @@
 # Frontend validation
 
+## Version 0.7.1 — full-width D110 artwork
+
+- Removed the 12 mm artwork-band rejection and margin instructions. On 15 mm
+  paper, the full 120-dot bitmap and page width are sent without cropping,
+  resampling or fitting. Frames use normal paper margins instead of the inferred
+  12 mm band. Existing narrower packet layouts are preserved.
+- Added browser/native tests for edge pixels, full-width legacy row counts and
+  120-dot page sizing. Full-width physical output awaits the owner's feedback;
+  no new physical test label is sent automatically.
+- 174 frontend tests and 65 Rust tests pass. The production browser UI completed
+  a simulated full-width job with both outer-edge pixels intact, a 120-dot page
+  width and no margin warning. No real printer was contacted for this check.
+
 ## Version 0.7.0 — original D110 and stock catalog
 
 - 173 frontend tests, TypeScript and desktop/web production builds pass. Tests

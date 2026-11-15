@@ -118,6 +118,22 @@ function fixture(
 }
 afterEach(() => vi.useRealTimers());
 describe("acknowledged D110 browser session, fake GATT only", () => {
+  it("sends all 120 dots including both paper edges without fitting", async () => {
+    const f = fixture();
+    await f.session.initialize();
+    f.outgoing.length = 0;
+    const rgba = new Uint8Array(120 * 240 * 4).fill(255);
+    rgba.set([0, 0, 0, 255], 0);
+    rgba.set([0, 0, 0, 255], 119 * 4);
+    await f.session.print({ ...job(), widthMm: 15, widthPx: 120, rgba });
+    expect([...f.outgoing.find(frame => frame.command === 0x13)!.data]).toEqual([0, 240, 0, 120]);
+    const pixels = f.outgoing.find(frame => frame.command === 0x85)!.data;
+    expect([...pixels.slice(0, 6)]).toEqual([0, 0, 1, 0, 1, 1]);
+    expect(pixels.length).toBe(21);
+    expect(pixels[6]).toBe(128);
+    expect(pixels[20]).toBe(1);
+    f.session.close();
+  });
   it("runs actual-unit legacy protocol1 sequence as a complete job per copy", async () => {
     const f = fixture();
     expect(await f.session.initialize()).toMatchObject({

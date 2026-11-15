@@ -457,6 +457,37 @@ mod tests {
         assert_eq!(frames[6].data, [0, 1]);
     }
     #[tokio::test(start_paused = true)]
+    async fn full_width_page_preserves_edge_pixels() {
+        let mut replies = Vec::new();
+        for command in [0x31, 0x33, 2, 0x30, 4, 0x14, 0x16, 0xe4] {
+            replies.push(wire::frame(command, &[1]));
+        }
+        replies.push(wire::frame(0xb3, &[0, 1, 100, 100]));
+        replies.push(wire::frame(0xf4, &[1]));
+        let mut s = session(replies);
+        s.task = Some(PrintTask::Legacy);
+        let mut page = prepared();
+        page.width = 120;
+        page.copies = 1;
+        let mut edge = vec![0, 0, 0, 2, 0, 1];
+        edge.extend([0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+        page.rows = vec![
+            wire::frame(0x85, &edge),
+            wire::frame(0x84, &[0, 1, 200]),
+            wire::frame(0x84, &[0, 201, 39]),
+        ];
+        s.print(&page, &AtomicBool::new(false), |_, _| {})
+            .await
+            .unwrap();
+        let frames = written(&s);
+        assert_eq!(frames[5].data, [0, 240, 0, 120]);
+        let row = frames.iter().find(|frame| frame.command == 0x85).unwrap();
+        assert_eq!(&row.data[..6], &[0, 0, 1, 0, 1, 1]);
+        assert_eq!(row.data.len(), 21);
+        assert_eq!(row.data[6], 128);
+        assert_eq!(row.data[20], 1);
+    }
+    #[tokio::test(start_paused = true)]
     async fn contradictory_new_status_does_not_authorize_legacy_printing() {
         let mut status = vec![0; 13];
         status[11] = 2;

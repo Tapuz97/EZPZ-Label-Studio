@@ -874,7 +874,7 @@ export default function App() {
         !readyToPrint(c)
           ? `Connected to ${c.name}. Printing is unavailable until this model is supported.`
           : c.protocol === "niimbot"
-            ? `Connected to ${c.name}.${stock ? ` Roll matched to ${stock.widthMm} × ${stock.heightMm} mm in the ${stock.source}.` : " Choose the loaded label size."} On 15 mm paper, leave 1.5 mm blank along each side of the 12 mm print area.`
+            ? `Connected to ${c.name}.${stock ? ` Roll matched to ${stock.widthMm} × ${stock.heightMm} mm in the ${stock.source}.` : " Choose the loaded label size."}`
             : `Connected to ${c.name}.`,
       );
     } catch (e) {
@@ -1106,7 +1106,7 @@ export default function App() {
         setPrintNote(`Checking label ${index + 1} of ${jobs.length}`);
         const rendered = await renderLabel(item.doc, item.row);
         if (connection.protocol === "niimbot") {
-          // Check every batch page's printable margins before any page is sent.
+          // Validate every prepared batch page before any page is sent.
           prepareD110Raster({
             ...item.doc,
             protocol: "niimbot",
@@ -2339,13 +2339,13 @@ export default function App() {
                   ? `${connection.capabilities.dpi} dpi${connection.capabilities.fieldSources?.dpi?.toLowerCase().includes("model") ? " · model specification" : " reported"}`
                   : `Not reported · ${doc.dpi} dpi selected`}
                 <br />
-                Maximum width:{" "}
+                {connection.protocol !== "niimbot" && <>Maximum width:{" "}
                 {connection.capabilities?.maxWidthMm
                   ? `${Number(connection.capabilities.maxWidthMm.toFixed(1))} mm${connection.capabilities.fieldSources?.maxWidthDots?.toLowerCase().includes("model") ? " · model specification" : " reported"}`
                   : connection.capabilities?.maxWidthDots
                     ? `${connection.capabilities.maxWidthDots} dots${connection.capabilities.fieldSources?.maxWidthDots?.toLowerCase().includes("model") ? " · model specification" : " reported"}`
                     : "Not reported"}
-                <br />
+                <br /></>}
                 <span>
                   {printerStock
                     ? `Paper: ${printerStock.widthMm} × ${printerStock.heightMm} mm · RFID matched to ${printerStock.source}.`
@@ -2380,12 +2380,6 @@ export default function App() {
                       Use {printerStock.widthMm} × {printerStock.heightMm} mm
                     </Button>
                   )}
-                {connection.protocol === "niimbot" && (
-                  <p>
-                    15 mm paper has a centered 12 mm print area. Keep 1.5 mm
-                    blank along each side; the design is never shrunk to fit.
-                  </p>
-                )}
                 <div className="mt-3 text-[10px] font-medium tracking-widest text-muted-foreground">
                   ENGINEERING
                 </div>

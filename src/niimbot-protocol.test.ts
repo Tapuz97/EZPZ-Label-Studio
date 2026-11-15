@@ -158,17 +158,18 @@ describe("NIIMBOT protocol without hardware", () => {
     "handles 15 mm paper in either orientation without dropping black content: %o",
     (size) => {
       const rgba = new Uint8Array(size.widthPx * size.heightPx * 4).fill(255);
-      const x = size.widthPx === 120 ? 12 : 0,
-        y = size.widthPx === 120 ? 0 : 107;
-      rgba.set([0, 0, 0, 255], (y * size.widthPx + x) * 4);
+      rgba.set([0, 0, 0, 255], 0);
+      const second = size.widthPx === 120 ? 119 : 119 * size.widthPx;
+      rgba.set([0, 0, 0, 255], second * 4);
       const result = prepareD110Raster(d110Job({ ...size, rgba }));
-      expect(result.width).toBe(96);
+      expect(result.width).toBe(120);
       expect(result.height).toBe(240);
       expect(result.data[0]).toBe(128);
-      rgba.set([0, 0, 0, 255], 0);
-      expect(() => prepareD110Raster(d110Job({ ...size, rgba }))).toThrow(
-        "blank on each side",
-      );
+      expect(result.data[14]).toBe(1);
+      expect(result.data.filter((byte) => byte !== 0).length).toBe(2);
+      const decoded = new NiimbotFrameDecoder().push(d110RowFrames(result, "legacy")[0])[0];
+      expect([...decoded.data.slice(0, 6)]).toEqual([0, 0, 1, 0, 1, 1]);
+      expect(decoded.data.length).toBe(21);
     },
   );
   it.each([

@@ -70,9 +70,9 @@ export function validateDocumentForPrinter(
     throw Error(`Choose a density from ${range.min} to ${range.max}.`);
   if (connection.protocol === "niimbot") {
     // D110 model 2304 only. Rotate landscape artwork to the physical head axis;
-    // never stretch, shrink or crop a label to force it onto narrower stock.
+    // Artwork pixels are sent unchanged, without enforcing model-table margins.
     if (dpi !== 203 || Math.min(width, height) > 120 || Math.max(width, height) > 799)
-      throw Error("The D110 needs 203 dpi labels with a paper width up to 15 mm and a length up to 100 mm. Its centered print area is 12 mm wide. Choose the size loaded in the printer.");
+      throw Error("The D110 needs 203 dpi labels with a paper width up to 15 mm and a length up to 100 mm. Choose the size loaded in the printer.");
   } else if (connection.capabilities?.maxWidthDots && width > connection.capabilities.maxWidthDots) {
     throw Error(`This label is wider than the printer's ${connection.capabilities.maxWidthDots}-dot print area. Choose a smaller label width.`);
   }

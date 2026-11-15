@@ -30,14 +30,16 @@ Raw captures, APKs and unique device/roll identifiers remain outside Git.
 ## Print and stock handling
 
 The legacy task uses one-byte Start, Clear, PageStart, four-byte Size, separate
-Quantity and split bitmap counts for three 32-dot head sections. Independently
+Quantity and split bitmap counts for three equal byte sections. Independently
 negotiated protocol 3 uses the b1 variant. Each copy is a separate single-page
 job; physical page completion is polled before PrintEnd. Uncertain writes are
 never automatically retried.
 
-The output head is 96 dots. Landscape artwork rotates clockwise. Narrow artwork
-is centered; wider paper loses only blank margins. Black content outside the
-centered 12 mm band is rejected. Artwork is never silently shrunk to fit.
+The earlier 96-dot model recommendation is advisory. Landscape artwork rotates
+clockwise as before; 15 mm artwork is transmitted with all 120 dots, including
+both edges. No 12 mm band, forced blank margins, cropping or automatic scaling is
+applied. Existing narrower jobs retain their packet layout. Full-width physical
+output is awaiting the owner's feedback; the prior confirmed print used 96 dots.
 
 RFID supplies an identifier, not dimensions. Known codes resolve locally;
 unfamiliar codes get one bounded manufacturer lookup sending only the SKU.
