@@ -16,19 +16,21 @@ The folders preserve the organization used in the Store asset collection.
 
 ## Microsoft Store badge
 
-<a href="https://get.microsoft.com/installer/download/9PNR3K65GQFL?referrer=appbadge" target="_self"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Download EZPZ Label Studio from the Microsoft Store"></a>
+<a href="https://apps.microsoft.com/detail/9PNR3K65GQFL"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Download EZPZ Label Studio from the Microsoft Store"></a>
 
 The README uses the static code snippet generated at
 [Microsoft's badge creator](https://apps.microsoft.com/badge) for app ID
-`9PNR3K65GQFL` (American English, Dark, Direct launch). The artwork is hosted by
-Microsoft; no badge image is stored in this repository. Static HTML works in
+`9PNR3K65GQFL` (American English, Dark), linked to the public Store listing. The
+artwork is hosted by Microsoft; no badge image is stored in this repository. Static HTML works in
 GitHub READMEs without JavaScript. Microsoft retains its rights to the badge and
 trademarks; the project's licence does not apply to that artwork.
 
 The web app's Home footer uses Microsoft's interactive `ms-store-badge` component
-with Direct launch, the website's selected Light/Dark theme, Large size, American
+with Full Store mode, the website's selected Light/Dark theme, Large size, American
 English, and animation enabled. Its module and artwork are loaded from Microsoft
 only in the web app; the installed app remains independent of the badge service.
+Full mode opens the Store app's product page on Windows and the web listing on
+other platforms, instead of downloading a standalone installer.
 
 ## Poster and box art
 

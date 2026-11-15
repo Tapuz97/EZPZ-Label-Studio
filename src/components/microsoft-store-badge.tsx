@@ -49,7 +49,7 @@ export function MicrosoftStoreBadge() {
           ref: badge,
           className: "store-download-badge",
           productid: "9PNR3K65GQFL",
-          "window-mode": "direct",
+          "window-mode": "full",
           size: "large",
           language: "en-us",
           animation: "on",

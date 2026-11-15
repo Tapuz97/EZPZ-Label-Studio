@@ -7,8 +7,8 @@
     <a href="https://tapuz97.github.io/EZPZ-Label-Studio/"><img src="https://img.shields.io/badge/Web-editor-2563eb?style=flat-square&amp;labelColor=182233" alt="Open the web editor"></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/licence-PolyForm%20Noncommercial%201.0.0-2563eb?style=flat-square&amp;labelColor=182233" alt="PolyForm Noncommercial 1.0.0 licence"></a>
   </p>
-  <p>A desktop workspace for your Bluetooth label printer.<br>Create a design, prepare your artwork, or turn a CSV into a batch of labels.</p>
-  <p><a href="https://get.microsoft.com/installer/download/9PNR3K65GQFL?referrer=appbadge" target="_self"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Download EZPZ Label Studio from the Microsoft Store"></a></p>
+  <p>A desktop workspace for Bluetooth thermal sticker and label printers.<br>Create a design, prepare your artwork, or turn a CSV into a batch of labels.</p>
+  <p><a href="https://apps.microsoft.com/detail/9PNR3K65GQFL"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Download EZPZ Label Studio from the Microsoft Store"></a></p>
   <p><a href="https://tapuz97.github.io/EZPZ-Label-Studio/"><strong>Open the web editor</strong></a> &nbsp; · &nbsp; <a href="https://github.com/Tapuz97/EZPZ-Label-Studio/releases/latest">Windows downloads</a> &nbsp; · &nbsp; <a href="examples/templates/sample-templates.json">Sample templates</a></p>
   <p>Native Windows app &nbsp; · &nbsp; Shared web editor &nbsp; · &nbsp; Local file processing</p>
 </div>
@@ -17,13 +17,14 @@
 
 ## A small studio for everyday labels
 
-Parts bins, equipment tags, parcel artwork, and repeat jobs. Start with a blank
-canvas, upload a file, or pick up a saved template. Review the monochrome output
-before sending it to your printer.
+Primarily built for **thermal sticker and label printers**: parts-bin stickers,
+equipment tags, parcel labels, and repeat jobs. Start with a blank canvas, upload
+a file, or pick up a saved template. Review the monochrome output before sending
+it to your compatible Bluetooth printer.
 
 | Design your label | Prepare your artwork | Print and reuse |
 | --- | --- | --- |
-| Text, images, barcodes, and QR codes | PDF pages and common image formats | Compatible Bluetooth LE printers |
+| Text, images, barcodes, and QR codes | PDF pages and common image formats | Compatible Bluetooth LE thermal label printers |
 | Alignment, rotation, and grid snapping | Visual cropping, scaling, and orientation | CSV batches with named component fields |
 | RTL/LTR text and text alignment | Stock presets and custom dimensions | Local templates, bulk import, and export |
 | QR backgrounds and center logos | Zoom, pan, and monochrome previews | Copies, print progress, and cancellation |
@@ -84,9 +85,10 @@ required columns are validated before any labels are sent.
 
 ## Printer compatibility
 
-**Designed to work with most Bluetooth LE printers compatible with the EZlabel
-app, with further testing required across models.** EZPZ is an independent
-project, unaffiliated with the reference app or printer manufacturers.
+**Designed to work with most Bluetooth LE thermal sticker and label printers
+compatible with the EZlabel app, with further testing required across models.**
+EZPZ is an independent project, unaffiliated with the reference app or printer
+manufacturers.
 
 | Printer or family | Current evidence |
 | --- | --- |
