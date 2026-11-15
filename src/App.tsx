@@ -19,6 +19,8 @@ import { PrinterDialog } from "@/components/printer-dialog";
 import { ArtworkViewport } from "@/components/artwork-viewport";
 import { useUnsavedWork } from "@/components/unsaved-work";
 import { ComponentSettings } from "./ComponentSettings";
+import { FramePicker, framePlacement } from "./FramePicker";
+import { framePresets, type FrameStyle } from "./frames";
 import {
   alignElement,
   angleFromPointer,
@@ -270,6 +272,7 @@ export default function App() {
   const [screen, setScreen] = useState<"home" | "editor">("home");
   const [showImport, setShowImport] = useState(false);
   const [showPrinter, setShowPrinter] = useState(false);
+  const [showFrames, setShowFrames] = useState(false);
   const [history, setHistory] = useState<History>(() => ({
     past: [],
     present: loadDocument(),
@@ -584,7 +587,8 @@ export default function App() {
         event.defaultPrevented ||
         screen !== "editor" ||
         showImport ||
-        showPrinter
+        showPrinter ||
+        showFrames
       )
         return;
       const target = event.target as HTMLElement;
@@ -645,7 +649,24 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedId, screen, showImport, showPrinter]);
+  }, [selectedId, screen, showImport, showPrinter, showFrames]);
+  function addFrame(style: FrameStyle) {
+    if (doc.elements.length >= 100) {
+      report(Error("A label can contain up to 100 elements."));
+      return;
+    }
+    const element: LabelElement = {
+      ...makeElement("rect"),
+      ...framePlacement(doc, connection),
+      frameStyle: style,
+      strokeWidth: 0.25,
+    };
+    update((document) => ({
+      ...document,
+      elements: [element, ...document.elements],
+    }));
+    setSelectedId(element.id);
+  }
   function add(kind: ElementKind) {
     if (doc.elements.length >= 100) {
       report(Error("A label can contain up to 100 elements."));
@@ -1092,7 +1113,9 @@ export default function App() {
             copies,
             widthPx: rendered.width,
             heightPx: rendered.height,
-            rgba: rendered.getContext("2d")!.getImageData(0, 0, rendered.width, rendered.height).data,
+            rgba: rendered
+              .getContext("2d")!
+              .getImageData(0, 0, rendered.width, rendered.height).data,
           });
         }
         if (jobs.length === 1) singleCanvas = rendered;
@@ -1241,7 +1264,9 @@ export default function App() {
           <Button
             className="button primary"
             style={{ display: screen === "home" ? "none" : undefined }}
-            disabled={!printerReady || !!printerIssue || printing || !!renderError}
+            disabled={
+              !printerReady || !!printerIssue || printing || !!renderError
+            }
             onClick={() => void print()}
           >
             <Printer size={17} />
@@ -1262,7 +1287,9 @@ export default function App() {
                   <span className="text-[10px] leading-none text-muted-foreground">
                     View project on
                   </span>
-                  <span className="text-xl font-semibold leading-none">GitHub</span>
+                  <span className="text-xl font-semibold leading-none">
+                    GitHub
+                  </span>
                 </span>
               </a>
             </Button>
@@ -1363,7 +1390,7 @@ export default function App() {
                       { kind: "qr", icon: QrCode, label: "QR code" },
                       { kind: "image", icon: ImagePlus, label: "Image" },
                       { kind: "line", icon: Minus, label: "Line" },
-                      { kind: "rect", icon: Square, label: "Border" },
+                      { kind: "rect", icon: Square, label: "Frames" },
                     ] as const
                   ).map((t) => (
                     <Button
@@ -1372,7 +1399,9 @@ export default function App() {
                       onClick={() =>
                         t.kind === "image"
                           ? imageRef.current?.click()
-                          : add(t.kind)
+                          : t.kind === "rect"
+                            ? setShowFrames(true)
+                            : add(t.kind)
                       }
                     >
                       <t.icon size={23} />
@@ -1435,7 +1464,7 @@ export default function App() {
                             : el.kind === "image"
                               ? "Image"
                               : el.kind === "rect"
-                                ? "Border"
+                                ? `${framePresets.find((frame) => frame.id === (el.frameStyle ?? "plain"))?.name ?? "Plain"} frame`
                                 : "Line"}
                         </strong>
                         <small>
@@ -1974,7 +2003,9 @@ export default function App() {
                 <Badge variant="secondary" className="selected-kind">
                   {selected.kind === "qr"
                     ? "QR CODE"
-                    : selected.kind.toUpperCase()}
+                    : selected.kind === "rect"
+                      ? "FRAME"
+                      : selected.kind.toUpperCase()}
                 </Badge>
                 {selected.kind === "image" && (
                   <p className="mb-3 text-xs text-muted-foreground">
@@ -2175,7 +2206,9 @@ export default function App() {
                     }}
                   >
                     {![...commonPresets, ...picturePresets].some(
-                      (p) => p.widthMm === doc.widthMm && p.heightMm === doc.heightMm,
+                      (p) =>
+                        p.widthMm === doc.widthMm &&
+                        p.heightMm === doc.heightMm,
                     ) && (
                       <option value={`${doc.widthMm}x${doc.heightMm}`}>
                         Custom
@@ -2318,24 +2351,40 @@ export default function App() {
                     ? `Paper: ${printerStock.widthMm} × ${printerStock.heightMm} mm · RFID matched to ${printerStock.source}.`
                     : "Stock size is set manually."}
                 </span>
-                {printerStock && !(
-                  Math.min(doc.widthMm, doc.heightMm) === Math.min(printerStock.widthMm, printerStock.heightMm) &&
-                  Math.max(doc.widthMm, doc.heightMm) === Math.max(printerStock.widthMm, printerStock.heightMm)
-                ) && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2 w-full"
-                    disabled={printing}
-                    onClick={() => patchDoc(doc.widthMm > doc.heightMm
-                      ? { widthMm: printerStock.widthMm, heightMm: printerStock.heightMm }
-                      : { widthMm: printerStock.heightMm, heightMm: printerStock.widthMm })}
-                  >
-                    Use {printerStock.widthMm} × {printerStock.heightMm} mm
-                  </Button>
-                )}
+                {printerStock &&
+                  !(
+                    Math.min(doc.widthMm, doc.heightMm) ===
+                      Math.min(printerStock.widthMm, printerStock.heightMm) &&
+                    Math.max(doc.widthMm, doc.heightMm) ===
+                      Math.max(printerStock.widthMm, printerStock.heightMm)
+                  ) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 w-full"
+                      disabled={printing}
+                      onClick={() =>
+                        patchDoc(
+                          doc.widthMm > doc.heightMm
+                            ? {
+                                widthMm: printerStock.widthMm,
+                                heightMm: printerStock.heightMm,
+                              }
+                            : {
+                                widthMm: printerStock.heightMm,
+                                heightMm: printerStock.widthMm,
+                              },
+                        )
+                      }
+                    >
+                      Use {printerStock.widthMm} × {printerStock.heightMm} mm
+                    </Button>
+                  )}
                 {connection.protocol === "niimbot" && (
-                  <p>15 mm paper has a centered 12 mm print area. Keep 1.5 mm blank along each side; the design is never shrunk to fit.</p>
+                  <p>
+                    15 mm paper has a centered 12 mm print area. Keep 1.5 mm
+                    blank along each side; the design is never shrunk to fit.
+                  </p>
                 )}
                 <div className="mt-3 text-[10px] font-medium tracking-widest text-muted-foreground">
                   ENGINEERING
@@ -2425,7 +2474,9 @@ export default function App() {
             )}
             <Button
               className="button primary full print-action"
-              disabled={!printerReady || !!printerIssue || printing || !!renderError}
+              disabled={
+                !printerReady || !!printerIssue || printing || !!renderError
+              }
               onClick={() => void print()}
             >
               <Printer size={17} />
@@ -2480,6 +2531,11 @@ export default function App() {
           void importCsv(e.target.files?.[0]);
           e.target.value = "";
         }}
+      />
+      <FramePicker
+        open={showFrames}
+        onOpenChange={setShowFrames}
+        onSelect={addFrame}
       />
       <PrinterDialog
         open={showPrinter}

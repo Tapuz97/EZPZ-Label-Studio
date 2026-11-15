@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { framePresets } from "./frames";
 import {
   initialDocument,
   mmToPx,
@@ -9,6 +10,19 @@ import {
   makeElement, componentContent, requiredCsvColumns, validateCsvColumns, sampleCsv,
 } from "./model";
 describe("label documents", () => {
+  it("round-trips every frame style with thickness and rotation without changing old borders", () => {
+    const plain = { ...makeElement("rect"), strokeWidth: 0.3, rotation: 37 };
+    const old = { ...initialDocument(), elements: [plain] };
+    expect(parseDocument(JSON.parse(JSON.stringify(old)))).toEqual(old);
+    expect(Object.hasOwn(parseDocument(old).elements[0], "frameStyle")).toBe(false);
+    for (const { id: frameStyle } of framePresets) {
+      const doc = { ...old, elements: [{ ...plain, frameStyle }] };
+      expect(parseDocument(JSON.parse(JSON.stringify(doc)))).toEqual(doc);
+    }
+    for (const frameStyle of [null, 42, {}, "unknown", "<script>"])
+      expect(() => parseDocument({ ...old, elements: [{ ...plain, frameStyle }] })).toThrow("frame");
+    expect(() => parseDocument({ ...old, elements: [{ ...makeElement("text"), frameStyle: "rounded" }] })).toThrow("frame");
+  });
   it("round-trips a validated label", () => {
     const d = initialDocument();
     expect(parseDocument(JSON.parse(JSON.stringify(d)))).toEqual(d);

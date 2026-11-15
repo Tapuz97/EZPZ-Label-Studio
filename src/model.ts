@@ -1,3 +1,6 @@
+import { isFrameStyle } from "./frames";
+import type { FrameStyle } from "./frames";
+export type { FrameStyle } from "./frames";
 export type ElementKind = "text" | "barcode" | "qr" | "image" | "line" | "rect";
 export type LabelElement = {
   id: string;
@@ -13,6 +16,7 @@ export type LabelElement = {
   qrShowLogo?: boolean;
   barcodeShowText?: boolean;
   strokeWidth?: number;
+  frameStyle?: FrameStyle;
   crop?: { x: number; y: number; width: number; height: number };
   fontSize: number;
   fontFamily:
@@ -208,6 +212,7 @@ export function parseDocument(input: unknown): LabelDocument {
     for (const key of ["qrBackground", "qrShowLogo", "barcodeShowText"])
       if (e[key] !== undefined && typeof e[key] !== "boolean") throw Error("Invalid component setting.");
     if (e.strokeWidth !== undefined && !numberIn(e.strokeWidth, 0.05, 10)) throw Error("Thickness must be 0.05–10 mm.");
+    if (e.frameStyle !== undefined && (e.kind !== "rect" || !isFrameStyle(e.frameStyle))) throw Error("Unsupported frame style. Frames must be border components.");
     if (e.qrLogo !== undefined && (typeof e.qrLogo !== "string" || e.qrLogo.length > 2_000_000 || (e.qrLogo && !/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(e.qrLogo))))
       throw Error("QR logos must be embedded PNG, JPEG or WebP images.");
     if (e.crop !== undefined) {
@@ -238,6 +243,7 @@ export function parseDocument(input: unknown): LabelDocument {
       ...(e.qrShowLogo !== undefined ? {qrShowLogo: e.qrShowLogo} : {}),
       ...(e.barcodeShowText !== undefined ? {barcodeShowText: e.barcodeShowText} : {}),
       ...(e.strokeWidth !== undefined ? {strokeWidth: e.strokeWidth} : {}),
+      ...(e.frameStyle !== undefined ? {frameStyle: e.frameStyle} : {}),
       ...(e.crop !== undefined ? {crop: e.crop} : {}),
     } as LabelElement;
   });

@@ -24,7 +24,7 @@ it to your compatible Bluetooth printer.
 
 | Design your label | Prepare your artwork | Print and reuse |
 | --- | --- | --- |
-| Text, images, barcodes, and QR codes | PDF pages and common image formats | Compatible Bluetooth LE thermal label printers |
+| Text, images, barcodes, QR codes, and frames | PDF pages and common image formats | Compatible Bluetooth LE thermal label printers |
 | Alignment, rotation, and grid snapping | Visual cropping, scaling, and orientation | CSV batches with named component fields |
 | RTL/LTR text and text alignment | Stock presets and custom dimensions | Local templates, bulk import, and export |
 | QR backgrounds and center logos | Zoom, pan, and monochrome previews | Copies, print progress, and cancellation |
@@ -78,6 +78,8 @@ required columns are validated before any labels are sent.
   default; hold Shift to adjust them freely.
 - Show or hide QR backgrounds and uploaded center logos, toggle barcode numbers,
   and adjust line and border thickness.
+- Choose from 12 original frame styles with visual previews. Frames work with
+  every printer, resize and rotate like other components, and save with templates.
 - Import PDF, PNG, JPEG, WebP, BMP, or GIF (first frame). Export designs as PNG or
   reusable label files.
 
@@ -109,6 +111,8 @@ unique serial number. Unknown stock remains manually configurable.
 
 [D110 30 × 15 mm sample template](examples/templates/d110-30x15.json) ·
 [D110 protocol and verification notes](docs/printers/niimbot-d110.md)
+
+[Framed pantry sample for any compatible printer](examples/templates/framed-pantry-50x30.json)
 
 ## Windows and web
 

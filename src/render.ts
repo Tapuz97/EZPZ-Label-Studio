@@ -2,6 +2,7 @@ import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
 import { mmToPx, monochrome, componentContent, validateCsvColumns } from "./model";
 import type { LabelDocument } from "./model";
+import { frameGeometry } from "./frames";
 const imageCache = new Map<string, Promise<HTMLImageElement>>();
 function imageFor(src: string) {
   let image = imageCache.get(src);
@@ -73,14 +74,21 @@ async function renderUncached(
         lines.push(line);
       }
       lines.forEach((line, i) => c.fillText(line, tx, i * size * 1.18));
-    } else if (e.kind === "rect")
-      c.strokeRect(
-        c.lineWidth / 2,
-        c.lineWidth / 2,
-        w - c.lineWidth,
-        h - c.lineWidth,
-      );
-    else if (e.kind === "line") {
+    } else if (e.kind === "rect") {
+      if (e.frameStyle === undefined) {
+        // Preserve the exact rendering of existing plain border templates.
+        c.strokeRect(c.lineWidth / 2, c.lineWidth / 2, w - c.lineWidth, h - c.lineWidth);
+      } else {
+        const geometry = frameGeometry(e.frameStyle, w, h, c.lineWidth);
+        c.lineWidth = geometry.strokeWidth;
+        for (const path of geometry.paths) {
+          c.setLineDash(path.dash ?? []);
+          c.lineCap = path.lineCap ?? "butt";
+          c.lineJoin = path.lineJoin ?? "round";
+          c.stroke(new Path2D(path.d));
+        }
+      }
+    } else if (e.kind === "line") {
       c.beginPath();
       c.moveTo(0, h / 2);
       c.lineTo(w, h / 2);

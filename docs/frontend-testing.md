@@ -2,7 +2,7 @@
 
 ## Version 0.7.0 — original D110 and stock catalog
 
-- 158 frontend tests, TypeScript and desktop/web production builds pass. Tests
+- 173 frontend tests, TypeScript and desktop/web production builds pass. Tests
   cover legacy/b1 negotiation, exact packet sequences, fragmented notifications,
   cancellation, safe margins/rotation, RFID parsing and bounded catalog caching.
 - Browser plugin unavailable; rendered QA used Playwright at 1440 × 960 and
@@ -15,6 +15,13 @@
   tests preserve manual selection; validated cached sizes remain available offline.
 - Only the native Windows path has printed to the physical D110. Browser print
   packets were simulated; physical browser output remains unverified.
+- Frames are available without a printer and for every supported print path.
+  All 12 original styles produce distinct monochrome rasters inside their bounds.
+  Browser checks passed add-behind ordering, style changes retaining geometry/
+  rotation, thickness editing, modal keyboard isolation and template export.
+  A production build imported the framed sample with its style intact. Picker
+  checks at 1440 × 960 and 1024 × 720 passed light/dark appearance and scrolling.
+  Legacy plain border rendering and JSON remain compatible.
 
 ## Version 0.6.2 — header appearance and repository link
 
