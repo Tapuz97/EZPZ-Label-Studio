@@ -3,6 +3,8 @@ import JsBarcode from "jsbarcode";
 import { mmToPx, monochrome, componentContent, validateCsvColumns } from "./model";
 import type { LabelDocument } from "./model";
 import { frameGeometry } from "./frames";
+import { canvasFont, ensureTextFonts } from "./fonts";
+import { wrapText } from "./text-layout";
 const imageCache = new Map<string, Promise<HTMLImageElement>>();
 function imageFor(src: string) {
   let image = imageCache.get(src);
@@ -24,6 +26,7 @@ async function renderUncached(
   thresholded = true,
 ): Promise<HTMLCanvasElement> {
   if (Object.keys(row).length) validateCsvColumns(doc, [row]);
+  await ensureTextFonts(doc, doc.elements.filter(e => e.kind === "text").map(e => componentContent(e, row)));
   const canvas = document.createElement("canvas");
   canvas.width = mmToPx(doc.widthMm, doc.dpi);
   canvas.height = mmToPx(doc.heightMm, doc.dpi);
@@ -53,7 +56,7 @@ async function renderUncached(
       c.rect(0, 0, w, h);
       c.clip();
       const size = (e.fontSize * doc.dpi) / 72;
-      c.font = `${e.bold ? "700" : "400"} ${size}px "${e.fontFamily}", sans-serif`;
+      c.font = canvasFont(e.fontFamily, size, e.bold);
       c.textBaseline = "top";
       c.textAlign = e.align;
       const rtl =
@@ -61,18 +64,7 @@ async function renderUncached(
         (e.direction === "auto" && /[\u0590-\u08FF]/.test(content));
       c.direction = rtl ? "rtl" : "ltr";
       const tx = e.align === "center" ? w / 2 : e.align === "right" ? w : 0;
-      const lines: string[] = [];
-      for (const paragraph of content.split("\n")) {
-        let line = "";
-        for (const word of paragraph.split(" ")) {
-          const candidate = line ? `${line} ${word}` : word;
-          if (line && c.measureText(candidate).width > w) {
-            lines.push(line);
-            line = word;
-          } else line = candidate;
-        }
-        lines.push(line);
-      }
+      const lines = wrapText(content, w, text => c.measureText(text).width);
       lines.forEach((line, i) => c.fillText(line, tx, i * size * 1.18));
     } else if (e.kind === "rect") {
       if (e.frameStyle === undefined) {

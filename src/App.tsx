@@ -1,5 +1,9 @@
 import { SocialGithubDuotoneIcon } from "@thesvg/ui-react";
 import { CreatorToolbar } from "./CreatorToolbar";
+import { FontSelect } from "./FontSelect";
+import { fontFromFile, withDocumentFonts } from "./fonts";
+import { listCustomFonts, saveCustomFonts } from "./font-store";
+import type { CustomFont } from "./font-types";
 import { FieldGroup } from "@/components/ui/field";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -279,6 +283,8 @@ export default function App() {
     future: [],
   }));
   const doc = history.present;
+  const latestDocument = useRef(doc);
+  latestDocument.current = doc;
   const [pendingWork, setPendingWork] = useState(false);
   const [savedFingerprint, setSavedFingerprint] = useState(() =>
     JSON.stringify(doc),
@@ -377,6 +383,12 @@ export default function App() {
   const [autosaved, setAutosaved] = useState(true);
   const [error, setError] = useState("");
   const [renderError, setRenderError] = useState("");
+  const [customFonts, setCustomFonts] = useState<CustomFont[]>([]);
+  const [fontsReady, setFontsReady] = useState(false);
+  const [fontBusy, setFontBusy] = useState(false);
+  const fontLock = useRef(false);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const textSelection = useRef<{ id: string; start: number; end: number } | null>(null);
   const [zoom, setZoom] = useState(100);
   const [grid, setGrid] = useState(true);
   const [snap, setSnap] = useState(true);
@@ -415,7 +427,7 @@ export default function App() {
     setPendingWork(true);
     setHistory((h) => ({
       past: [...h.past.slice(-59), h.present],
-      present: typeof next === "function" ? next(h.present) : next,
+      present: withDocumentFonts(typeof next === "function" ? next(h.present) : next, customFonts),
       future: [],
     }));
   };
@@ -443,13 +455,54 @@ export default function App() {
         : h,
     );
   };
-  const patchElement = (patch: Partial<LabelElement>) =>
-    update((d) => ({
-      ...d,
-      elements: d.elements.map((e) =>
-        e.id === selectedId ? { ...e, ...patch } : e,
-      ),
-    }));
+  const patchElement = (patch: Partial<LabelElement>) => {
+    try {
+      update(withDocumentFonts({
+        ...doc,
+        elements: doc.elements.map(e => e.id === selectedId ? { ...e, ...patch } : e),
+      }, customFonts));
+    } catch (error) { report(error); }
+  };
+  async function addFonts(files: File[]) {
+    if (fontLock.current || !fontsReady) return;
+    fontLock.current = true;
+    setFontBusy(true);
+    clearMessages();
+    const targetId = selectedId;
+    try {
+      if (!files.length || files.length > 20 || files.reduce((sum, f) => sum + f.size, 0) > 20_000_000)
+        throw Error("Choose up to 20 fonts totaling 20 MB or less.");
+      const added: CustomFont[] = [];
+      // Load sequentially to avoid decoding many font files at the same time.
+      for (const file of files) added.push(await fontFromFile(file));
+      const merged = await saveCustomFonts(added);
+      setCustomFonts(merged);
+      const d = latestDocument.current;
+      const next = withDocumentFonts({
+        ...d,
+        elements: d.elements.map(e => e.id === targetId && e.kind === "text" ? { ...e, fontFamily: added[0].family } : e),
+      }, merged);
+      update(next);
+      setNotice(`Added ${added.length} font${added.length === 1 ? "" : "s"}. Your fonts are saved on this device and included in exported templates.`);
+    } catch (error) { report(error); }
+    finally { fontLock.current = false; setFontBusy(false); }
+  }
+  function insertText(text: string) {
+    if (!selected || selected.kind !== "text") return;
+    const selection = textSelection.current?.id === selected.id ? textSelection.current : null;
+    const start = selection?.start ?? selected.content.length;
+    const end = selection?.end ?? start;
+    const content = selected.content.slice(0, start) + text + selected.content.slice(end);
+    if (content.length > 4000) { report(Error("Text is limited to 4,000 characters.")); return; }
+    patchElement({ content });
+    textSelection.current = { id: selected.id, start: start + text.length, end: start + text.length };
+  }
+  function focusText() {
+    const selection = textSelection.current;
+    if (selection?.id !== selectedId) return;
+    contentRef.current?.focus();
+    contentRef.current?.setSelectionRange(selection.start, selection.end);
+  }
   function alignSelected(mode: Alignment) {
     if (!selected) return;
     const target = doc.elements.find(
@@ -507,6 +560,13 @@ export default function App() {
     setError("");
     setNotice("");
   };
+  useEffect(() => {
+    let disposed = false;
+    listCustomFonts().then(fonts => { if (!disposed) setCustomFonts(fonts); })
+      .catch(error => { if (!disposed) report(error); })
+      .finally(() => { if (!disposed) setFontsReady(true); });
+    return () => { disposed = true; };
+  }, []);
   useEffect(() => {
     try {
       localStorage.setItem(storageKey, JSON.stringify(doc));
@@ -1725,6 +1785,11 @@ export default function App() {
                   onAlign={alignSelected}
                   onChange={patchElement}
                   onLayer={moveLayer}
+                  fonts={[...customFonts, ...(doc.fonts ?? [])]}
+                  fontBusy={fontBusy || !fontsReady}
+                  onAddFonts={addFonts}
+                  onInsertText={insertText}
+                  onFocusText={focusText}
                 />
               ) : undefined
             }
@@ -2018,10 +2083,13 @@ export default function App() {
                     label={<>{selected.kind === "text" ? "Text" : "Content"}</>}
                   >
                     <Textarea
+                      ref={contentRef}
                       aria-label="Element content"
                       dir="auto"
                       value={selected.content}
                       maxLength={4000}
+                      onSelect={e => { textSelection.current = { id: selected.id, start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd }; }}
+                      onBlur={e => { textSelection.current = { id: selected.id, start: e.currentTarget.selectionStart, end: e.currentTarget.selectionEnd }; }}
                       onChange={(e) =>
                         patchElement({ content: e.target.value })
                       }
@@ -2081,21 +2149,14 @@ export default function App() {
                 {selected.kind === "text" && (
                   <>
                     <FormField label={<>Font</>}>
-                      <FormSelect
+                      <FontSelect
                         value={selected.fontFamily}
-                        onChange={(e) =>
-                          patchElement({
-                            fontFamily: e.target
-                              .value as LabelElement["fontFamily"],
-                          })
-                        }
-                      >
-                        <option value="Arial">Arial</option>
-                        <option value="Segoe UI">Segoe UI</option>
-                        <option value="Consolas">Consolas</option>
-                        <option value="Courier New">Courier New</option>
-                        <option value="Times New Roman">Times New Roman</option>
-                      </FormSelect>
+                        fonts={[...customFonts, ...(doc.fonts ?? [])]}
+                        onChange={fontFamily => patchElement({ fontFamily })}
+                        onAdd={addFonts}
+                        busy={fontBusy || !fontsReady}
+                        label="Font"
+                      />
                     </FormField>
                     <FieldGroup className="grid grid-cols-2 gap-3">
                       <NumberField

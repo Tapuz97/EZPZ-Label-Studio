@@ -1,0 +1,10 @@
+Added experimental NIIMBOT D110 printer support.
+Added D110 label-roll identification when a recognized roll identifier is available.
+Removed enforced D110 artwork margins.
+Added 12 decorative frame styles for all supported printers.
+Fixed frame grid snapping at different zoom levels and after printing.
+Added black-and-white Unicode emoji, symbol and ASCII emoticon printing.
+Added an emoji, symbol and emoticon picker to the text toolbar.
+Added custom TTF, OTF, WOFF and WOFF2 font uploads.
+Added a persistent local font library and embedded fonts in exported templates.
+Improved Unicode text wrapping to preserve joined emoji, flags and combining marks.

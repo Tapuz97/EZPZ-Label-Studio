@@ -1,5 +1,6 @@
 import { isFrameStyle } from "./frames";
 import type { FrameStyle } from "./frames";
+import { isCustomFontFamily, parseFonts, systemFonts, type CustomFont } from "./font-types";
 export type { FrameStyle } from "./frames";
 export type ElementKind = "text" | "barcode" | "qr" | "image" | "line" | "rect";
 export type LabelElement = {
@@ -19,8 +20,7 @@ export type LabelElement = {
   frameStyle?: FrameStyle;
   crop?: { x: number; y: number; width: number; height: number };
   fontSize: number;
-  fontFamily:
-    "Arial" | "Segoe UI" | "Consolas" | "Courier New" | "Times New Roman";
+  fontFamily: string;
   barcodeFormat: "CODE128" | "CODE39" | "EAN13" | "UPC" | "ITF14";
   bold: boolean;
   align: "left" | "center" | "right";
@@ -38,6 +38,7 @@ export type LabelDocument = {
   threshold: number;
   protocol: "zpl" | "tspl";
   elements: LabelElement[];
+  fonts?: CustomFont[];
 };
 export const uid = () => crypto.randomUUID();
 export const mmToPx = (mm: number, dpi: number) =>
@@ -159,6 +160,8 @@ export function parseDocument(input: unknown): LabelDocument {
     throw Error(
       "Invalid label settings. Use a Label Studio JSON file (10–216 mm wide, 10–500 mm tall).",
     );
+  const fonts = parseFonts(d.fonts);
+  const fontFamilies = new Set(fonts.map(f => f.family));
   const ids = new Set<string>();
   const elements = d.elements.map((item: unknown) => {
     if (!item || typeof item !== "object") throw Error("Invalid element.");
@@ -191,13 +194,8 @@ export function parseDocument(input: unknown): LabelDocument {
       throw Error("Text and codes are limited to 4,000 characters.");
     if (
       e.fontFamily !== undefined &&
-      ![
-        "Arial",
-        "Segoe UI",
-        "Consolas",
-        "Courier New",
-        "Times New Roman",
-      ].includes(e.fontFamily as string)
+      !systemFonts.includes(e.fontFamily as typeof systemFonts[number]) &&
+      !(isCustomFontFamily(e.fontFamily) && fontFamilies.has(e.fontFamily))
     )
       throw Error("Unsupported font family.");
     if (
@@ -260,6 +258,7 @@ export function parseDocument(input: unknown): LabelDocument {
     threshold: d.threshold,
     protocol: d.protocol ?? "zpl",
     elements,
+    ...(fonts.length ? { fonts } : {}),
   };
 }
 export function substitute(

@@ -72,6 +72,11 @@ required columns are validated before any labels are sent.
 <summary><strong>Editor controls and artwork options</strong></summary>
 
 - Resize text proportionally and set its direction and alignment.
+- Print Unicode emoji, symbols and ASCII emoticons in black and white. Use the
+  emoji picker in the text toolbar, or paste directly into your text or CSV.
+- Add your own TTF, OTF, WOFF or WOFF2 fonts (up to 2 MB each) with the upload
+  button next to the font selector. Fonts are saved on this device and embedded
+  in exported templates; designs can include up to 4 MB of custom fonts.
 - Align components to the label or one another. Drag a rotation handle to rotate;
   Snap uses 15-degree steps. Snapping shows alignment guides; hold Alt to bypass it.
 - Crop images with corner and side handles. Corners preserve proportions by

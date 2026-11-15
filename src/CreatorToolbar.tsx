@@ -23,6 +23,9 @@ import {
   Bold,
 } from "lucide-react";
 import { ArrowUp, ArrowDown, RotateCw } from "./icons";
+import { FontSelect } from "./FontSelect";
+import { EmojiPicker } from "./EmojiPicker";
+import type { CustomFont } from "./font-types";
 const alignments = [
   ["left", "Align left", AlignStartVertical],
   ["center", "Center horizontally", AlignCenterVertical],
@@ -39,6 +42,11 @@ export function CreatorToolbar({
   onAlign,
   onChange,
   onLayer,
+  fonts,
+  fontBusy,
+  onAddFonts,
+  onInsertText,
+  onFocusText,
 }: {
   element: LabelElement;
   elements: LabelElement[];
@@ -47,6 +55,11 @@ export function CreatorToolbar({
   onAlign: (mode: Alignment) => void;
   onChange: (patch: Partial<LabelElement>) => void;
   onLayer: (direction: number) => void;
+  fonts: CustomFont[];
+  fontBusy: boolean;
+  onAddFonts: (files: File[]) => Promise<void>;
+  onInsertText: (text: string) => void;
+  onFocusText: () => void;
 }) {
   const [cropping, setCropping] = useState(false);
   return (
@@ -81,29 +94,16 @@ export function CreatorToolbar({
           aria-label="Text formatting"
           className="flex flex-wrap items-center gap-1"
         >
-          <div className="w-32">
-            <FormSelect
-              aria-label="Text font"
+          <div className="w-48">
+            <FontSelect
               value={element.fontFamily}
-              onChange={(e) =>
-                onChange({
-                  fontFamily: e.target.value as LabelElement["fontFamily"],
-                })
-              }
-            >
-              {[
-                "Arial",
-                "Segoe UI",
-                "Consolas",
-                "Courier New",
-                "Times New Roman",
-              ].map((font) => (
-                <option value={font} key={font}>
-                  {font}
-                </option>
-              ))}
-            </FormSelect>
+              fonts={fonts}
+              onChange={fontFamily => onChange({ fontFamily })}
+              onAdd={onAddFonts}
+              busy={fontBusy}
+            />
           </div>
+          <EmojiPicker onInsert={onInsertText} onAfterInsert={onFocusText} />
           <Input
             aria-label="Text font size"
             title="Font size (pt)"
