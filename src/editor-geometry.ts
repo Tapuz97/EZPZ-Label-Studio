@@ -52,6 +52,10 @@ export function snapPlacement(
   tolerance: number,
 ) {
   const moving = bounds({ ...e, x, y });
+  // Guides must not swallow adjacent 1 mm grid positions. A screen-pixel
+  // tolerance alone grows in document units when the preview fits or zooms out,
+  // leaving near-full-label frames stuck on their center or edge guides.
+  const guideTolerance = Math.min(tolerance, 0.25);
   const refs = [
     { x: 0, y: 0, width, height },
     ...others.filter((o) => o.id !== e.id).map(bounds),
@@ -64,7 +68,7 @@ export function snapPlacement(
       moving[axis] + moving[size] / 2,
       moving[axis] + moving[size],
     ];
-    let best = tolerance,
+    let best = guideTolerance,
       delta: number | undefined,
       guide = 0;
     for (const ref of refs)

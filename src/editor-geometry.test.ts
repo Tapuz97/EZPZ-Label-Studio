@@ -41,6 +41,36 @@ describe("editor geometry", () => {
     expect(out.x).toBeCloseTo(10);
     expect(out.guides).toContainEqual({ axis: "x", position: 20 });
   });
+  it.each([0.5, 1, 2, 8])(
+    "lets an inset frame reach the next grid position with a %s mm screen tolerance",
+    (tolerance) => {
+      const frame = {
+        ...makeElement("rect"),
+        frameStyle: "double" as const,
+        x: 1.5,
+        y: 1.5,
+        width: 47,
+        height: 27,
+      };
+      const out = snapPlacement(frame, 2, 2, [frame], 50, 30, tolerance);
+      expect(out).toEqual({ x: 2, y: 2, guides: [] });
+    },
+  );
+  it("still aligns a frame when its center is close to the label center", () => {
+    const frame = {
+      ...makeElement("rect"),
+      width: 47,
+      height: 27,
+      frameStyle: "rounded" as const,
+    };
+    const out = snapPlacement(frame, 1.7, 1.7, [], 50, 30, 2);
+    expect(out.x).toBeCloseTo(1.5);
+    expect(out.y).toBeCloseTo(1.5);
+    expect(out.guides).toEqual([
+      { axis: "x", position: 25 },
+      { axis: "y", position: 15 },
+    ]);
+  });
   it("rotates from the top handle and optionally snaps to 15 degrees", () => {
     expect(angleFromPointer(0, 0, 1, 0)).toBe(90);
     expect(angleFromPointer(0, 0, 0, -1)).toBe(0);
