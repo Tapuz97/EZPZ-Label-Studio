@@ -1,5 +1,22 @@
 # Native Windows validation — 2026-11-13
 
+## Version 0.7.0 — D110, 15 November 2026
+
+- 64 Rust unit tests and the all-target offline compile check pass. Existing
+  DB403 byte-stream and packed-raster tests remain unchanged in behavior.
+- Live read-only checks identified original D110 model 2304, protocol 1 and
+  RFID stock code 02282280. The native app handshake selected the binary endpoint
+  despite the printer also exposing a generic UART, then released the connection.
+- One separately authorized 30 × 15 mm, 203 dpi label used the native app print
+  driver: 2,673 bytes, 221 writes, 5,067 ms through printer-confirmed completion.
+  The owner confirmed text and QR printed correctly without clipping. The driver
+  disconnected afterward. QR decoding and long batches were not physically tested.
+- Direct DPI/head-width queries were unsupported; model specifications remain
+  clearly labeled. RFID supplies a SKU; manufacturer catalog lookup independently
+  returned 30 × 15 mm. No unique roll/device identifier is sent to that service.
+- Physical Chrome D110 output, other firmware/media, clean installation and Store
+  certification remain outside this verification. See printers/niimbot-d110.md.
+
 ## Version 0.6.0 — shared editor features and disk templates
 
 - 45 Rust release tests pass, including persistent template replacement,

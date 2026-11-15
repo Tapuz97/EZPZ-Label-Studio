@@ -46,7 +46,7 @@ export function validatePrintJob(job: WebPrintJob) {
     job.rgba.length !== pixels * 4
   )
     throw Error("Invalid RGBA buffer or raster exceeds 8 million pixels.");
-  if (!["zpl", "tspl"].includes(job.protocol))
+  if (!["zpl", "tspl", "niimbot"].includes(job.protocol))
     throw Error("Unsupported printer format.");
 }
 export function monochrome(job: WebPrintJob) {
@@ -71,6 +71,10 @@ export function monochrome(job: WebPrintJob) {
 }
 export async function encodeWebPrint(job: WebPrintJob) {
   validatePrintJob(job);
+  if (job.protocol === "niimbot")
+    throw Error(
+      "NIIMBOT printing requires an identified, acknowledged printer session.",
+    );
   const raster = monochrome(job),
     rowBytes = Math.ceil(job.widthPx / 8),
     text = new TextEncoder();

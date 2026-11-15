@@ -1,5 +1,21 @@
 # Frontend validation
 
+## Version 0.7.0 — original D110 and stock catalog
+
+- 158 frontend tests, TypeScript and desktop/web production builds pass. Tests
+  cover legacy/b1 negotiation, exact packet sequences, fragmented notifications,
+  cancellation, safe margins/rotation, RFID parsing and bounded catalog caching.
+- Browser plugin unavailable; rendered QA used Playwright at 1440 × 960 and
+  1024 × 720. A simulated D110 exercised connection, RFID/catalog match, 30 × 15 mm
+  new-label defaults, template import, density 1–3, incompatible-size blocking and
+  print completion. No app errors, framework overlay or horizontal overflow were
+  observed. A canvas readback warning prompted enabling frequent-read mode.
+- Actual Chrome fetch to the manufacturer's catalog succeeded with CORS and
+  returned width 30, height 15 for SKU 02282280. Network-failure/malformed-response
+  tests preserve manual selection; validated cached sizes remain available offline.
+- Only the native Windows path has printed to the physical D110. Browser print
+  packets were simulated; physical browser output remains unverified.
+
 ## Version 0.6.2 — header appearance and repository link
 
 - Actual Chromium checks at 1440x960 and 1024x720 passed system-default dark

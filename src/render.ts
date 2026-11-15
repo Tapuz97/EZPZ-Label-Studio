@@ -184,6 +184,6 @@ export async function renderLabel(doc:LabelDocument,row:Record<string,string>={}
   }
   const source=await entry.canvas;
   const copy=document.createElement("canvas");copy.width=source.width;copy.height=source.height;
-  copy.getContext("2d")!.drawImage(source,0,0);
+  copy.getContext("2d", { willReadFrequently: true })!.drawImage(source,0,0);
   return copy;
 }

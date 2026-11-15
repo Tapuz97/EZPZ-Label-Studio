@@ -1,5 +1,5 @@
-//! Capability facts are populated only from device responses, never from a
-//! Bluetooth name or the editor's current label dimensions.
+//! Capability facts identify their provenance: live responses or explicitly
+//! labeled model specifications, never editor dimensions or a name alone.
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -23,6 +23,20 @@ pub fn decode_model_reply(bytes: &[u8]) -> Option<String> {
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrinterCapabilities {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connect_result: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protocol_version: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_id: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stock_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub density_min: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub density_max: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub density_default: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -56,6 +70,27 @@ pub struct PrinterCapabilities {
 }
 
 impl PrinterCapabilities {
+    pub fn set_d110_specification(&mut self) {
+        self.model_id = Some(2304);
+        self.density_min = Some(1);
+        self.density_max = Some(3);
+        self.density_default = Some(2);
+        self.model = Some("D110".into());
+        self.dpi = Some(203);
+        self.max_width_dots = Some(96);
+        let source = "D110 model specification".to_string();
+        self.source.push(source.clone());
+        for field in ["dpi", "maxWidthDots"] {
+            self.field_sources.insert(field.into(), source.clone());
+        }
+        self.field_sources.insert(
+            "model".into(),
+            "NIIMBOT 0x40[08] response verified model ID 2304".into(),
+        );
+        self.notes
+            .retain(|note| !note.starts_with("Loaded label width and height are not detected;"));
+        self.notes.push("Experimental D110 driver. DPI and 96-dot head are model specifications, not live reported geometry. RFID identifies the stock product; dimensions can be matched to a catalog or selected manually.".into());
+    }
     pub fn unknown() -> Self {
         Self {
             status: "unknown".into(),
@@ -70,7 +105,11 @@ impl PrinterCapabilities {
             _ => None,
         };
         if self.max_width_mm.is_some() {
-            self.field_sources.insert("maxWidthMm".into(), "Calculated from reported maxWidthDots and DPI (dots × 25.4 / DPI); not loaded stock width".into());
+            self.field_sources.insert(
+                "maxWidthMm".into(),
+                "Calculated from maxWidthDots and DPI (dots × 25.4 / DPI); not loaded stock width"
+                    .into(),
+            );
         }
         self.status = if self.dpi.is_some() && self.max_width_dots.is_some() {
             "reported"

@@ -1,11 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebPrinter } from "./web-printer";
+import {
+  NIIMBOT_SERVICE,
+  NIIMBOT_CHARACTERISTIC,
+  NiimbotFrameDecoder,
+  niimbotFrame,
+} from "./niimbot-protocol";
 const service = "000018f0-0000-1000-8000-00805f9b34fb",
   write = "00002af1-0000-1000-8000-00805f9b34fb";
 function fixture(
   ambiguous = false,
   options: {
     reportedSize?: number;
+    name?: string;
     probe?: "full" | "truncate" | "reject" | "silent" | "timeout";
   } = {},
 ) {
@@ -82,7 +89,7 @@ function fixture(
   };
   const device = Object.assign(new EventTarget(), {
     id: "test-printer",
-    name: "DB403",
+    name: options.name ?? "DB403",
     gatt,
   });
   const requestDevice = vi.fn(async () => device);
@@ -102,13 +109,202 @@ const label = () => ({
   widthPx: 80,
   heightPx: 80,
   threshold: 128,
-  protocol: "tspl",
+  protocol: "zpl",
 });
+function niimbotFixture(model = [9, 0], silentModel = false) {
+  const printer = new WebPrinter(),
+    decoder = new NiimbotFrameDecoder(),
+    commands: number[] = [];
+  const printableService = {
+    uuid: NIIMBOT_SERVICE,
+    getCharacteristic: async () => characteristic,
+  };
+  const characteristic = Object.assign(new EventTarget(), {
+    uuid: NIIMBOT_CHARACTERISTIC,
+    service: printableService,
+    properties: { write: true, notify: true },
+    value: new DataView(new ArrayBuffer(0)),
+    startNotifications: vi.fn(async () => {}),
+    stopNotifications: vi.fn(async () => {}),
+    writeValueWithResponse: vi.fn(async (bytes: Uint8Array) => {
+      for (const frame of decoder.push(bytes)) {
+        commands.push(frame.command);
+        let response: number | undefined,
+          data = [1];
+        if (frame.command === 0xc1) {
+          response = 0xc2;
+          data = [2];
+        } else if (frame.command === 0xa5) {
+          response = 0xb5;
+          data = [0x30, 0x30];
+        } else if (frame.command === 0x40) {
+          if (frame.data[0] === 8 && silentModel) continue;
+          response = 0x40 + frame.data[0];
+          data = frame.data[0] === 8 ? model : [1];
+        } else if (frame.command === 0xdc) response = 0;
+        else if (frame.command === 0x1a) {
+          response = 0x1b;
+          data = [
+            ...new Uint8Array(8),
+            8,
+            ...new TextEncoder().encode("02282280"),
+            16,
+            ...new TextEncoder().encode("TEST000000000000"),
+            0,
+            252,
+            0,
+            119,
+            1,
+          ];
+        } else if (frame.command === 0xa3) {
+          response = 0xb3;
+          data = [0, 1, 100, 100];
+        } else if (![0x84, 0x85].includes(frame.command))
+          response = (
+            {
+              0x21: 0x31,
+              0x23: 0x33,
+              0x20: 0x30,
+              0x15: 0x16,
+              1: 2,
+              3: 4,
+              0x13: 0x14,
+              0xe3: 0xe4,
+              0xf3: 0xf4,
+            } as Record<number, number>
+          )[frame.command];
+        if (response !== undefined) {
+          const reply = niimbotFrame(response, data);
+          characteristic.value = new DataView(reply.buffer);
+          characteristic.dispatchEvent(new Event("characteristicvaluechanged"));
+        }
+      }
+    }),
+  });
+  const gatt = {
+    connected: false,
+    disconnect: vi.fn(() => {
+      gatt.connected = false;
+    }),
+    connect: vi.fn(async () => {
+      gatt.connected = true;
+      return gatt;
+    }),
+    getPrimaryService: async (id: string) => {
+      // Real D110 exposes this generic-looking endpoint as well as NIIMBOT.
+      // An unknown advertised name must still select the binary family first.
+      if (id === "49535343-fe7d-4ae5-8fa9-9fafd205e455")
+        return {
+          uuid: id,
+          getCharacteristic: async () => ({
+            uuid: "49535343-8841-43f4-a8d4-ecbe34729bb3",
+            service: { uuid: id },
+            properties: { write: true },
+            writeValueWithResponse: async () => {
+              commands.push(-1);
+            },
+          }),
+        };
+      if (id !== NIIMBOT_SERVICE) throw Error("not found");
+      return printableService;
+    },
+  };
+  const device = Object.assign(new EventTarget(), {
+    id: "niimbot",
+    name: "Unknown printer",
+    gatt,
+  });
+  vi.stubGlobal("navigator", {
+    bluetooth: { requestDevice: async () => device },
+  });
+  vi.stubGlobal("isSecureContext", true);
+  vi.stubGlobal("window", new EventTarget());
+  return { printer, gatt, device, characteristic, commands };
+}
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 describe("browser BLE lifecycle without hardware", () => {
+  it("uses exact live D110 identity on NIIMBOT service even with unknown advertised name", async () => {
+    const f = niimbotFixture();
+    await f.printer.scan();
+    const info = await f.printer.connect("niimbot");
+    expect(info).toMatchObject({
+      protocol: "niimbot",
+      supportedForPrinting: true,
+      maxChunk: 20,
+      capabilities: {
+        modelId: 2304,
+        status: "model-specification",
+        dpi: 203,
+        maxWidthDots: 96,
+        densityMin: 1,
+        densityMax: 3,
+        densityDefault: 2,
+      },
+    });
+    expect(info.capabilities.fieldSources.dpi).toBe("model-specification");
+    expect(info.capabilities.stockCode).toBe("02282280");
+    expect(info.capabilities.fieldSources.stockCode).toBe(
+      "live RFID roll identifier",
+    );
+    expect(info.capabilities).not.toHaveProperty("serial");
+    expect(info.capabilities).not.toHaveProperty("uid");
+    expect(
+      f.commands.every((c) => [0xc1, 0xa5, 0x40, 0xdc, 0x1a].includes(c)),
+    ).toBe(true);
+    const result = await f.printer.print({
+      ...label(),
+      widthMm: 12,
+      heightMm: 30,
+      widthPx: 96,
+      heightPx: 240,
+      rgba: new Uint8Array(96 * 240 * 4).fill(255),
+      density: 2,
+      protocol: "niimbot",
+    });
+    expect(result.message).toContain("confirmed");
+    expect(f.commands.slice(-12)).toEqual([
+      0x21, 0x23, 1, 0x20, 3, 0x13, 0x15, 0x84, 0x84, 0xe3, 0xa3, 0xf3,
+    ]);
+    expect(f.printer.diagnostics().niimbotIdentity).toMatchObject({
+      connectResult: 2,
+      protocolVersion: 1,
+      printTask: "legacy",
+      heartbeatCommand: 0,
+      heartbeat: [1],
+      stockCode: "02282280",
+    });
+    f.printer.disconnect();
+    expect(f.characteristic.stopNotifications).toHaveBeenCalledOnce();
+  });
+  it.each([{ model: [9, 1] }, { model: [9, 16] }])(
+    "keeps an unverified NIIMBOT-service identity unsupported: %o",
+    async ({ model }) => {
+      const f = niimbotFixture(model);
+      await f.printer.scan();
+      const info = await f.printer.connect("niimbot");
+      expect(info.protocol).toBe("unsupported");
+      await expect(f.printer.print(label())).rejects.toThrow("not verified");
+      expect(f.commands).not.toContain(0x21);
+      f.printer.disconnect();
+    },
+  );
+  it("cancels an inquiry during connect and releases notifications, waiters and connection", async () => {
+    vi.useFakeTimers();
+    const f = niimbotFixture([9, 0], true);
+    await f.printer.scan();
+    const rejected = expect(f.printer.connect("niimbot")).rejects.toThrow(
+      /stopped|disconnected/,
+    );
+    await vi.advanceTimersByTimeAsync(1);
+    f.printer.disconnect();
+    await rejected;
+    expect(f.printer.status().connected).toBe(false);
+    expect(f.characteristic.stopNotifications).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
   it("uses a bounded browser-reported payload without sending inquiry probes", async () => {
     const f = fixture(false, { reportedSize: 514 });
     await f.printer.scan();
@@ -184,14 +380,14 @@ describe("browser BLE lifecycle without hardware", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
   it("sends proven 244-byte print chunks in order, without changing label bytes", async () => {
-    const f = fixture(false, { reportedSize: 244 });
+    const f = fixture(false, { reportedSize: 244, name: "DB402" });
     await f.printer.scan();
     await f.printer.connect("test-printer");
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "performance"] });
     f.writeValueWithResponse.mockImplementation(async () => {
       vi.advanceTimersByTime(100);
     });
-    const result = await f.printer.print(label());
+    const result = await f.printer.print({ ...label(), protocol: "tspl" });
     const sizes = f.writeValueWithResponse.mock.calls.map((c) => c[0]!.length);
     expect(sizes[0]).toBe(244);
     expect(result.chunksSent).toBe(Math.ceil(result.bytesSent / 244));
@@ -208,6 +404,25 @@ describe("browser BLE lifecycle without hardware", () => {
     expect(f.writeValueWithResponse).not.toHaveBeenCalled();
     f.printer.disconnect();
     expect(f.printer.status().connected).toBe(false);
+  });
+  it("rejects a mismatched ASCII protocol before any write", async () => {
+    const f = fixture();
+    await f.printer.scan();
+    await f.printer.connect("test-printer");
+    await expect(
+      f.printer.print({ ...label(), protocol: "tspl" }),
+    ).rejects.toThrow("does not match");
+    expect(f.writeValueWithResponse).not.toHaveBeenCalled();
+  });
+  it("never falls back to ASCII for a NIIMBOT name on another BLE endpoint", async () => {
+    const f = fixture(false, { name: "D110-FC06023035" });
+    await f.printer.scan();
+    const info = await f.printer.connect("test-printer");
+    expect(info.protocol).toBe("unsupported");
+    expect(info.supportedForPrinting).toBe(false);
+    await expect(f.printer.print(label())).rejects.toThrow("not verified");
+    expect(f.writeValueWithResponse).not.toHaveBeenCalled();
+    f.printer.disconnect();
   });
   it("refuses ambiguous fallback endpoints without sending data", async () => {
     const f = fixture(true);
@@ -237,7 +452,7 @@ describe("browser BLE lifecycle without hardware", () => {
         widthPx: 80,
         heightPx: 80,
         threshold: 128,
-        protocol: "tspl",
+        protocol: "zpl",
       }),
     ).rejects.toThrow("Printing stopped");
     expect(f.writeValueWithResponse).toHaveBeenCalledTimes(1);

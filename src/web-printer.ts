@@ -1,4 +1,7 @@
 import { encodeWebPrint, type WebPrintJob } from "./web-protocol";
+import { NIIMBOT_SERVICE, NIIMBOT_CHARACTERISTIC } from "./niimbot-protocol";
+import { NiimbotSession, type NiimbotIdentity } from "./niimbot-session";
+import { printerProtocol } from "./workflow";
 
 const uuid = (id: string) => `0000${id}-0000-1000-8000-00805f9b34fb`;
 const profiles = [
@@ -72,10 +75,24 @@ export class WebPrinter {
   private packetProof: PacketProof = { maxChunk: 20, source: "baseline" };
   private lastTransfer: Record<string, unknown> | null = null;
   private info: ReturnType<WebPrinter["connectionInfo"]> | null = null;
+  private niimbot: NiimbotSession | null = null;
+  private niimbotIdentity: NiimbotIdentity | null = null;
+  private connecting = false;
+  private connectingDevice: BluetoothDevice | null = null;
   private connectionInfo(
     device: BluetoothDevice,
     characteristic: BluetoothRemoteGATTCharacteristic,
   ) {
+    const binaryFamily =
+      characteristic.service.uuid === NIIMBOT_SERVICE ||
+      characteristic.uuid === NIIMBOT_CHARACTERISTIC ||
+      printerProtocol(device.name || "") === "unsupported";
+    const d110 = binaryFamily && this.niimbotIdentity?.compatible;
+    const protocol: "zpl" | "tspl" | "niimbot" | "unsupported" = binaryFamily
+      ? d110
+        ? "niimbot"
+        : "unsupported"
+      : printerProtocol(device.name || "");
     return {
       id: device.id,
       name: device.name || "Bluetooth printer",
@@ -86,14 +103,54 @@ export class WebPrinter {
         : "WithoutResponse",
       maxChunk: this.packetProof.maxChunk,
       chunkSource: this.packetProof.source,
+      protocol,
+      supportedForPrinting: protocol !== "unsupported",
       capabilities: {
-        model: this.packetProof.model,
-        status: this.packetProof.model ? "partial" : "unknown",
-        source: ["Web Bluetooth supported GATT profile"],
-        fieldSources: {},
-        notes: [
-          "DPI, printable width and loaded stock are not reported by this browser connection. Choose the loaded stock manually.",
-        ],
+        model: d110
+          ? "NIIMBOT D110"
+          : this.niimbotIdentity
+            ? `NIIMBOT model ${this.niimbotIdentity.modelId}`
+            : this.packetProof.model,
+        modelId: this.niimbotIdentity?.modelId,
+        protocolVersion: this.niimbotIdentity?.protocolVersion,
+        status: d110
+          ? "model-specification"
+          : this.packetProof.model
+            ? "partial"
+            : "unknown",
+        source: d110
+          ? ["live NIIMBOT model inquiry", "D110 model specification"]
+          : ["Web Bluetooth supported GATT profile"],
+        fieldSources: {
+          ...(d110
+            ? {
+                model: "live-query",
+                dpi: "model-specification",
+                maxWidthDots: "model-specification",
+                density: "model-specification",
+              }
+            : {}),
+          ...(this.niimbotIdentity?.stockCode
+            ? { stockCode: "live RFID roll identifier" }
+            : {}),
+        },
+        stockCode: this.niimbotIdentity?.stockCode,
+        dpi: d110 ? 203 : undefined,
+        maxWidthDots: d110 ? 96 : undefined,
+        densityMin: d110 ? 1 : undefined,
+        densityMax: d110 ? 3 : undefined,
+        densityDefault: d110 ? 2 : undefined,
+        notes: d110
+          ? [
+              "Experimental D110 support. Model identity was queried live; 203 dpi, 96-dot head and density 1–3 come from model specifications, not a live measurement. Stock is selected manually.",
+            ]
+          : binaryFamily
+            ? [
+                "This NIIMBOT model or protocol has not been verified for printing. No ASCII printer fallback is permitted.",
+              ]
+            : [
+                "DPI, printable width and loaded stock are not reported by this browser connection. Choose the loaded stock manually.",
+              ],
       },
     };
   }
@@ -206,7 +263,7 @@ export class WebPrinter {
       throw Error(
         "Bluetooth printing requires Chrome or Edge on a supported device over HTTPS. You can still design and export labels here.",
       );
-    if (this.busy || this.device?.gatt?.connected)
+    if (this.busy || this.connecting || this.device?.gatt?.connected)
       throw Error("Disconnect the printer before selecting another device.");
     // This call must remain synchronous with the user's click (browser activation).
     const device = await navigator.bluetooth.requestDevice({
@@ -225,10 +282,14 @@ export class WebPrinter {
   }
   async connect(id: string) {
     if (this.busy) throw Error("A print job is already being sent.");
+    if (this.connecting)
+      throw Error("A printer connection is already in progress.");
     const device = this.selected.get(id);
     if (!device?.gatt)
       throw Error("Choose this printer in the browser Bluetooth picker first.");
     this.disconnect();
+    this.connecting = true;
+    this.connectingDevice = device;
     const generation = this.generation;
     try {
       const pending = device.gatt.connect().then((server) => {
@@ -239,8 +300,14 @@ export class WebPrinter {
         return server;
       });
       const server = await bounded(pending, 10000, "Bluetooth connection");
+      device.addEventListener("gattserverdisconnected", this.onDisconnected);
       let characteristic: BluetoothRemoteGATTCharacteristic | null = null;
-      for (const profile of profiles) {
+      const orderedProfiles = [...profiles].sort(
+        (a, b) =>
+          Number(b.service === NIIMBOT_SERVICE) -
+          Number(a.service === NIIMBOT_SERVICE),
+      );
+      for (const profile of orderedProfiles) {
         try {
           const service = await bounded(
             server.getPrimaryService(profile.service),
@@ -288,7 +355,32 @@ export class WebPrinter {
         );
       if (generation !== this.generation)
         throw Error("Bluetooth connection cancelled.");
-      this.packetProof = await this.verifyPacketLimit(device, characteristic);
+      const niimbotEndpoint =
+        characteristic.service.uuid === NIIMBOT_SERVICE ||
+        characteristic.uuid === NIIMBOT_CHARACTERISTIC;
+      if (niimbotEndpoint) {
+        if (
+          !characteristic.properties.notify &&
+          !characteristic.properties.indicate
+        )
+          throw Error(
+            "This NIIMBOT endpoint cannot return the required printer acknowledgements.",
+          );
+        this.packetProof = {
+          maxChunk: reportedPacketLimit(server) ?? 20,
+          source:
+            reportedPacketLimit(server) === null
+              ? "baseline"
+              : "browser-reported-payload",
+        };
+        this.niimbot = new NiimbotSession(
+          characteristic,
+          this.packetProof.maxChunk,
+        );
+        this.niimbotIdentity = await this.niimbot.initialize();
+      } else if (printerProtocol(device.name || "") !== "unsupported") {
+        this.packetProof = await this.verifyPacketLimit(device, characteristic);
+      } else this.packetProof = { maxChunk: 20, source: "baseline" };
       if (generation !== this.generation)
         throw Error("Bluetooth connection cancelled.");
       if (!device.gatt?.connected)
@@ -299,14 +391,28 @@ export class WebPrinter {
       device.addEventListener("gattserverdisconnected", this.onDisconnected);
       return this.info;
     } catch (error) {
+      this.niimbot?.close();
+      this.niimbot = null;
+      this.niimbotIdentity = null;
+      device.removeEventListener("gattserverdisconnected", this.onDisconnected);
       this.generation++;
       device.gatt.disconnect();
       throw error;
+    } finally {
+      this.connecting = false;
+      this.connectingDevice = null;
     }
   }
   private onDisconnected = () => {
+    this.niimbot?.close();
+    this.niimbot = null;
+    this.niimbotIdentity = null;
     this.cancelled = true;
     this.device?.removeEventListener(
+      "gattserverdisconnected",
+      this.onDisconnected,
+    );
+    this.connectingDevice?.removeEventListener(
       "gattserverdisconnected",
       this.onDisconnected,
     );
@@ -315,8 +421,16 @@ export class WebPrinter {
     this.info = null;
   };
   disconnect() {
+    this.niimbot?.close();
+    this.niimbot = null;
+    this.niimbotIdentity = null;
     this.generation++;
     this.cancelled = true;
+    this.connectingDevice?.gatt?.disconnect();
+    this.connectingDevice?.removeEventListener(
+      "gattserverdisconnected",
+      this.onDisconnected,
+    );
     this.device?.removeEventListener(
       "gattserverdisconnected",
       this.onDisconnected,
@@ -338,6 +452,7 @@ export class WebPrinter {
       platform: "Web Bluetooth",
       connection: this.status(),
       lastTransfer: this.lastTransfer,
+      niimbotIdentity: this.niimbotIdentity,
       notes: [
         "Browser device identifiers are scoped to this website. No hardware address or negotiated MTU is exposed.",
         "A successful transfer is not confirmation that a physical label printed.",
@@ -346,11 +461,54 @@ export class WebPrinter {
   }
   cancel() {
     this.cancelled = true;
+    this.niimbot?.cancel();
   }
   async print(job: WebPrintJob) {
     if (this.busy) throw Error("A print job is already being sent.");
     if (!this.characteristic || !this.device?.gatt?.connected)
       throw Error("Connect a printer before printing.");
+    if (!this.info?.supportedForPrinting)
+      throw Error(
+        "This printer model is not verified for printing. No print data was sent.",
+      );
+    if (job.protocol !== this.info.protocol)
+      throw Error(
+        "The label printer format does not match this connection. No print data was sent.",
+      );
+    if (this.niimbot) {
+      this.busy = true;
+      this.cancelled = false;
+      const started = performance.now();
+      try {
+        const result = await this.niimbot.print(job, (sent, total) =>
+          window.dispatchEvent(
+            new CustomEvent(WEB_PROGRESS_EVENT, {
+              detail: {
+                sent,
+                total,
+                elapsedMs: performance.now() - started,
+                bytesPerSecond: 0,
+              },
+            }),
+          ),
+        );
+        this.lastTransfer = { ...result, protocol: "niimbot", error: null };
+        return result;
+      } catch (error) {
+        this.lastTransfer = {
+          protocol: "niimbot",
+          error: error instanceof Error ? error.message : String(error),
+        };
+        this.disconnect();
+        throw error;
+      } finally {
+        this.busy = false;
+      }
+    }
+    if (job.protocol === "niimbot")
+      throw Error(
+        "NIIMBOT printing requires its identified printer connection. No print data was sent.",
+      );
     this.busy = true;
     this.cancelled = false;
     const characteristic = this.characteristic,

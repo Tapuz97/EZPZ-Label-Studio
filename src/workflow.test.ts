@@ -49,4 +49,8 @@ describe("automatic printer format", () => {
       expect(printerProtocol(model)).toBe("tspl");
     expect(printerProtocol("DB403 test")).toBe("zpl");
   });
+  it("never sends fallback ZPL to a NIIMBOT family name", () => {
+    for (const model of ["D110", "D110-EXAMPLE", "D110_M", "D110M", "D11", "NIIMBOT D110", "NIIMBOTD110", "NIIM-Example"])
+      expect(printerProtocol(model)).toBe("unsupported");
+  });
 });

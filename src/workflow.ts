@@ -1,5 +1,9 @@
 import type { LabelDocument } from "./model";
 export const commonPresets = [
+  [30, 12],
+  [30, 15],
+  [15, 30],
+  [40, 12],
   [20, 10],
   [25, 15],
   [30, 20],
@@ -24,7 +28,10 @@ export const commonPresets = [
   widthMm,
   heightMm,
 }));
-export function printerProtocol(name: string): "zpl" | "tspl" {
+export function printerProtocol(name: string): "zpl" | "tspl" | "unsupported" {
+  // These binary families need a verified connection, never an ASCII fallback.
+  if (/^(?:NIIM|D11)/i.test(name.trim()))
+    return "unsupported";
   return /^(XP-428A|4B-2084A|DB402)(?:$|[ -])/i.test(name.trim())
     ? "tspl"
     : "zpl";

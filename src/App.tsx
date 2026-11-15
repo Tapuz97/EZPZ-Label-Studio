@@ -92,22 +92,38 @@ import { renderLabel } from "./render";
 import { HomeScreen } from "./HomeScreen";
 import { ImportFlow } from "./ImportFlow";
 import { ThemeControl } from "./theme";
-import { picturePresets, commonPresets, printerProtocol } from "./workflow";
+import { picturePresets, commonPresets } from "./workflow";
+import { prepareD110Raster } from "./niimbot-protocol";
+import { lookupStock, stockForPrinter } from "./printer-stock";
+import {
+  connectedSettings,
+  densityRange,
+  readyToPrint,
+  validateDocumentForPrinter,
+  type PrinterProtocol,
+} from "./printer-profile";
 
 type Device = { id: string; name: string; address: string; rssi?: number };
 type Capabilities = {
+  stockCode?: string;
+  modelId?: number;
   model?: string;
   manufacturer?: string;
   firmware?: string;
   dpi?: number;
   maxWidthDots?: number;
   maxWidthMm?: number;
+  densityMin?: number;
+  densityMax?: number;
+  densityDefault?: number;
   status: string;
   source: string[];
   fieldSources: Record<string, string>;
   notes: string[];
 };
 type Connection = {
+  protocol: PrinterProtocol;
+  supportedForPrinting: boolean;
   capabilities?: Capabilities;
   id: string;
   name: string;
@@ -330,6 +346,17 @@ export default function App() {
   );
   const [devices, setDevices] = useState<Device[]>([]);
   const [connection, setConnection] = useState<Connection | null>(null);
+  const printerReady = readyToPrint(connection);
+  const printerDensity = densityRange(connection);
+  const printerStock = stockForPrinter(connection);
+  let printerIssue = "";
+  if (connection) {
+    try {
+      validateDocumentForPrinter(connection, doc);
+    } catch (error) {
+      printerIssue = error instanceof Error ? error.message : String(error);
+    }
+  }
   const [scanning, setScanning] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
   const [copies, setCopies] = useState(1);
@@ -817,9 +844,18 @@ export default function App() {
       const c = await printerCommand<Connection>("connect_printer", {
         id: device.id,
       });
+      if (c.protocol === "niimbot" && c.capabilities?.stockCode)
+        await lookupStock(c.capabilities.stockCode);
       setConnection(c);
-      patchDoc({ protocol: printerProtocol(c.capabilities?.model || c.name) });
-      setNotice(`Connected to ${c.name}.`);
+      patchDoc(connectedSettings(c, doc));
+      const stock = stockForPrinter(c);
+      setNotice(
+        !readyToPrint(c)
+          ? `Connected to ${c.name}. Printing is unavailable until this model is supported.`
+          : c.protocol === "niimbot"
+            ? `Connected to ${c.name}.${stock ? ` Roll matched to ${stock.widthMm} × ${stock.heightMm} mm in the ${stock.source}.` : " Choose the loaded label size."} On 15 mm paper, leave 1.5 mm blank along each side of the 12 mm print area.`
+            : `Connected to ${c.name}.`,
+      );
     } catch (e) {
       report(e);
     } finally {
@@ -1008,7 +1044,7 @@ export default function App() {
     }
   }
   async function print() {
-    if (!connection || printing || renderError) return;
+    if (!connection || !printerReady || printing || renderError) return;
     clearMessages();
     setPrinting(true);
     setProgress(0);
@@ -1045,8 +1081,20 @@ export default function App() {
       const preparationStarted = performance.now();
       for (const [index, item] of jobs.entries()) {
         if (stopBatch.current) break;
+        validateDocumentForPrinter(connection, item.doc);
         setPrintNote(`Checking label ${index + 1} of ${jobs.length}`);
         const rendered = await renderLabel(item.doc, item.row);
+        if (connection.protocol === "niimbot") {
+          // Check every batch page's printable margins before any page is sent.
+          prepareD110Raster({
+            ...item.doc,
+            protocol: "niimbot",
+            copies,
+            widthPx: rendered.width,
+            heightPx: rendered.height,
+            rgba: rendered.getContext("2d")!.getImageData(0, 0, rendered.width, rendered.height).data,
+          });
+        }
         if (jobs.length === 1) singleCanvas = rendered;
       }
       const preflightMs = performance.now() - preparationStarted;
@@ -1070,9 +1118,7 @@ export default function App() {
             widthPx: canvas.width,
             heightPx: canvas.height,
             threshold: item.doc.threshold,
-            protocol: printerProtocol(
-              connection.capabilities?.model || connection.name,
-            ),
+            protocol: connection.protocol,
           },
         });
         jobTimings.push({
@@ -1195,7 +1241,7 @@ export default function App() {
           <Button
             className="button primary"
             style={{ display: screen === "home" ? "none" : undefined }}
-            disabled={!connection || printing || !!renderError}
+            disabled={!printerReady || !!printerIssue || printing || !!renderError}
             onClick={() => void print()}
           >
             <Printer size={17} />
@@ -1244,6 +1290,7 @@ export default function App() {
           templateLocation={templateLocation}
           templatesBusy={!libraryReady || libraryBusy}
           connected={connection?.name ?? null}
+          detectedPaper={printerStock ?? undefined}
           onResume={() => {
             setPendingWork(true);
             setScreen("editor");
@@ -2127,15 +2174,9 @@ export default function App() {
                       patchDoc({ widthMm: w, heightMm: h });
                     }}
                   >
-                    {![
-                      "60x90",
-                      "50x30",
-                      "40x30",
-                      "100x150",
-                      ...picturePresets.map(
-                        (p) => `${p.widthMm}x${p.heightMm}`,
-                      ),
-                    ].includes(`${doc.widthMm}x${doc.heightMm}`) && (
+                    {![...commonPresets, ...picturePresets].some(
+                      (p) => p.widthMm === doc.widthMm && p.heightMm === doc.heightMm,
+                    ) && (
                       <option value={`${doc.widthMm}x${doc.heightMm}`}>
                         Custom
                       </option>
@@ -2262,17 +2303,40 @@ export default function App() {
                 <br />
                 Resolution:{" "}
                 {connection.capabilities?.dpi
-                  ? `${connection.capabilities.dpi} dpi reported`
+                  ? `${connection.capabilities.dpi} dpi${connection.capabilities.fieldSources?.dpi?.toLowerCase().includes("model") ? " · model specification" : " reported"}`
                   : `Not reported · ${doc.dpi} dpi selected`}
                 <br />
                 Maximum width:{" "}
                 {connection.capabilities?.maxWidthMm
-                  ? `${connection.capabilities.maxWidthMm} mm reported`
+                  ? `${Number(connection.capabilities.maxWidthMm.toFixed(1))} mm${connection.capabilities.fieldSources?.maxWidthDots?.toLowerCase().includes("model") ? " · model specification" : " reported"}`
                   : connection.capabilities?.maxWidthDots
-                    ? `${connection.capabilities.maxWidthDots} dots reported`
+                    ? `${connection.capabilities.maxWidthDots} dots${connection.capabilities.fieldSources?.maxWidthDots?.toLowerCase().includes("model") ? " · model specification" : " reported"}`
                     : "Not reported"}
                 <br />
-                <span>Stock size is set manually.</span>
+                <span>
+                  {printerStock
+                    ? `Paper: ${printerStock.widthMm} × ${printerStock.heightMm} mm · RFID matched to ${printerStock.source}.`
+                    : "Stock size is set manually."}
+                </span>
+                {printerStock && !(
+                  Math.min(doc.widthMm, doc.heightMm) === Math.min(printerStock.widthMm, printerStock.heightMm) &&
+                  Math.max(doc.widthMm, doc.heightMm) === Math.max(printerStock.widthMm, printerStock.heightMm)
+                ) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 w-full"
+                    disabled={printing}
+                    onClick={() => patchDoc(doc.widthMm > doc.heightMm
+                      ? { widthMm: printerStock.widthMm, heightMm: printerStock.heightMm }
+                      : { widthMm: printerStock.heightMm, heightMm: printerStock.widthMm })}
+                  >
+                    Use {printerStock.widthMm} × {printerStock.heightMm} mm
+                  </Button>
+                )}
+                {connection.protocol === "niimbot" && (
+                  <p>15 mm paper has a centered 12 mm print area. Keep 1.5 mm blank along each side; the design is never shrunk to fit.</p>
+                )}
                 <div className="mt-3 text-[10px] font-medium tracking-widest text-muted-foreground">
                   ENGINEERING
                 </div>
@@ -2322,9 +2386,10 @@ export default function App() {
               <NumberField
                 label="Density"
                 value={doc.density}
-                max={15}
+                min={printerDensity.min}
+                max={printerDensity.max}
                 step={1}
-                suffix="/ 15"
+                suffix={`/ ${printerDensity.max}`}
                 onChange={(v) => patchDoc({ density: Math.floor(v) })}
               />
             </FieldGroup>
@@ -2360,7 +2425,7 @@ export default function App() {
             )}
             <Button
               className="button primary full print-action"
-              disabled={!connection || printing || !!renderError}
+              disabled={!printerReady || !!printerIssue || printing || !!renderError}
               onClick={() => void print()}
             >
               <Printer size={17} />
@@ -2376,6 +2441,11 @@ export default function App() {
               <p className="connection-hint">
                 Connect a printer to enable printing.
               </p>
+            )}
+            {connection && printerIssue && (
+              <Alert className="mt-3">
+                <AlertDescription>{printerIssue}</AlertDescription>
+              </Alert>
             )}
           </section>
         </aside>

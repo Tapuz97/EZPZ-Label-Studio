@@ -93,12 +93,22 @@ manufacturers.
 | Printer or family | Current evidence |
 | --- | --- |
 | **BPXX DB403** | Physical 60 × 90 mm, 203 DPI printing verified on Windows and Chrome / Windows 11; output confirmed by the owner |
+| **NIIMBOT D110 (model 2304)** | Native Windows 30 × 15 mm, 203 DPI test printed correctly, confirmed by the owner. RFID/catalog identification verified; browser packet/UI tests pass, physical browser output pending. |
 | Other EZlabel-compatible BLE printers | Service/profile and print-format paths implemented; each model still needs physical testing |
-| Niimbot, iPrint, Labelife, Nelko, Jadens, Pixmate, and other families | Future research candidates; **not currently claimed as supported** |
+| Other Niimbot models, iPrint, Labelife, Nelko, Jadens, Pixmate, and other families | Future research candidates; **not currently claimed as supported** |
 
 A Bluetooth name or successful connection does not prove print compatibility.
 Classic Bluetooth SPP/RFCOMM is not implemented. When a printer does not report
 its DPI, print width, or loaded stock, choose the correct settings manually.
+
+The D110 uses a 12 mm print area on paper up to 15 mm wide. The editor preserves
+artwork scale and rejects content outside that print area. Its RFID roll code
+can be matched to NIIMBOT's stock catalog; cached sizes work offline. A new
+catalog lookup sends only the stock product code, without artwork or the roll's
+unique serial number. Unknown stock remains manually configurable.
+
+[D110 30 × 15 mm sample template](examples/templates/d110-30x15.json) ·
+[D110 protocol and verification notes](docs/printers/niimbot-d110.md)
 
 ## Windows and web
 

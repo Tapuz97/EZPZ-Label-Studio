@@ -63,6 +63,7 @@ type HomeScreenProps = {
   templateLocation?: string;
   templatesBusy?: boolean;
   connected: string | null;
+  detectedPaper?: { widthMm: number; heightMm: number };
   onResume: () => void;
   onNew: (width: number, height: number, name: string) => void;
   onImport: () => void;
@@ -147,6 +148,7 @@ export function HomeScreen({
   templateLocation = "This browser’s storage (on this device)",
   templatesBusy = false,
   connected,
+  detectedPaper,
   onResume,
   onNew,
   onImport,
@@ -253,6 +255,10 @@ export function HomeScreen({
           icon={FilePlus2}
           onClick={() => {
             setError("");
+            if (detectedPaper) {
+              setWidth(detectedPaper.widthMm);
+              setHeight(detectedPaper.heightMm);
+            }
             setCreating(true);
           }}
           emphasized

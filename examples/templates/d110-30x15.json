@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "name": "NIIMBOT D110 - 30 x 15 mm",
+  "widthMm": 30,
+  "heightMm": 15,
+  "dpi": 203,
+  "gapMm": 2,
+  "density": 2,
+  "threshold": 160,
+  "protocol": "zpl",
+  "elements": [
+    {
+      "id": "d110-title",
+      "kind": "text",
+      "x": 1.5,
+      "y": 2.7,
+      "width": 18,
+      "height": 4,
+      "content": "EZPZ D110",
+      "fontSize": 7,
+      "fontFamily": "Arial",
+      "barcodeFormat": "CODE128",
+      "bold": true,
+      "align": "left",
+      "direction": "ltr",
+      "rotation": 0
+    },
+    {
+      "id": "d110-detail",
+      "kind": "text",
+      "dataId": "item",
+      "x": 1.5,
+      "y": 7.8,
+      "width": 18,
+      "height": 3.5,
+      "content": "TEST / 001",
+      "fontSize": 6,
+      "fontFamily": "Arial",
+      "barcodeFormat": "CODE128",
+      "bold": false,
+      "align": "left",
+      "direction": "ltr",
+      "rotation": 0
+    },
+    {
+      "id": "d110-qr",
+      "kind": "qr",
+      "x": 21,
+      "y": 3.5,
+      "width": 8,
+      "height": 8,
+      "content": "EZPZ-D110",
+      "qrBackground": true,
+      "fontSize": 7,
+      "fontFamily": "Arial",
+      "barcodeFormat": "CODE128",
+      "bold": false,
+      "align": "center",
+      "direction": "ltr",
+      "rotation": 0
+    }
+  ]
+}

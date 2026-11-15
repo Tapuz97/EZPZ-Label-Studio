@@ -60,7 +60,7 @@ impl PrintJob {
         if pixels > 8_000_000 {
             return Err("Invalid RGBA buffer or raster exceeds 8 million pixels.".into());
         }
-        if !["tspl", "zpl"].contains(&self.protocol.as_str()) {
+        if !["tspl", "zpl", "niimbot"].contains(&self.protocol.as_str()) {
             return Err("Unsupported printer language.".into());
         }
         Ok(pixels)
@@ -84,6 +84,22 @@ pub struct RasterPrintJob {
     pub protocol: String,
 }
 impl RasterPrintJob {
+    pub fn validate(&self) -> Result<(), String> {
+        self.metadata().validate_metadata()?;
+        let stride = self.width_px.div_ceil(8);
+        if self.raster.len() != stride * self.height_px {
+            return Err("Packed raster dimensions do not match the label.".into());
+        }
+        if self.width_px % 8 != 0
+            && self
+                .raster
+                .chunks_exact(stride)
+                .any(|row| row[stride - 1] & (0xffu8 >> (self.width_px % 8)) != 0)
+        {
+            return Err("Packed raster edge padding must be white.".into());
+        }
+        Ok(())
+    }
     fn metadata(&self) -> PrintJob {
         PrintJob {
             width_mm: self.width_mm,
@@ -101,26 +117,15 @@ impl RasterPrintJob {
     }
 }
 pub fn encode_raster(job: &RasterPrintJob) -> Result<Vec<u8>, String> {
+    job.validate()?;
     let metadata = job.metadata();
-    metadata.validate_metadata()?;
-    let row_bytes = job.width_px.div_ceil(8);
-    if job.raster.len() != row_bytes * job.height_px {
-        return Err("Packed raster dimensions do not match the label.".into());
-    }
-    if job.width_px % 8 != 0 {
-        let unused_mask = 0xffu8 >> (job.width_px % 8);
-        if job
-            .raster
-            .chunks_exact(row_bytes)
-            .any(|row| row[row_bytes - 1] & unused_mask != 0)
-        {
-            return Err("Packed raster edge padding must be white.".into());
-        }
-    }
     match job.protocol.as_str() {
         "zpl" => encode_zpl(&metadata, &job.raster),
         "tspl" => encode_tspl(&metadata, &job.raster),
-        _ => unreachable!("validated printer format"),
+        _ => Err(
+            "NIIMBOT requires its verified connection session; generic encoding is disabled."
+                .into(),
+        ),
     }
 }
 
@@ -149,7 +154,10 @@ pub fn encode(job: &PrintJob) -> Result<Vec<u8>, String> {
     match job.protocol.as_str() {
         "zpl" => encode_zpl(job, &raster),
         "tspl" => encode_tspl(job, &raster),
-        _ => unreachable!("validated printer language"),
+        _ => Err(
+            "NIIMBOT requires its verified connection session; generic encoding is disabled."
+                .into(),
+        ),
     }
 }
 
@@ -246,6 +254,30 @@ mod tests {
     fn malformed_raster_rejected_before_send() {
         let job = pixel_job(1, 1, vec![0, 0, 0, 255]);
         assert!(encode(&job).unwrap_err().contains("dimensions"));
+    }
+    #[test]
+    fn niimbot_is_validated_but_never_ascii_encoded() {
+        let mut job = pixel_job(96, 240, vec![255; 96 * 240 * 4]);
+        job.width_mm = 12.;
+        job.height_mm = 30.;
+        job.protocol = "niimbot".into();
+        job.density = 2;
+        assert!(job.validate().is_ok());
+        assert!(encode(&job).unwrap_err().contains("session"));
+        let packed = RasterPrintJob {
+            width_mm: 12.,
+            height_mm: 30.,
+            gap_mm: 2.,
+            dpi: 203,
+            copies: 1,
+            density: 2,
+            raster: vec![0; 12 * 240],
+            width_px: 96,
+            height_px: 240,
+            threshold: 128,
+            protocol: "niimbot".into(),
+        };
+        assert!(encode_raster(&packed).unwrap_err().contains("session"));
     }
     #[test]
     fn non_finite_dimensions_rejected() {

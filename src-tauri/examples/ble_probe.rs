@@ -1,7 +1,6 @@
 //! Read-only native scan / connection smoke test. No print commands are sent.
 //! cargo run --example ble_probe -- --connect DB403
-#[path = "../src/bluetooth.rs"]
-mod bluetooth;
+use ble_label_studio_lib::bluetooth;
 
 #[tokio::main]
 async fn main() {

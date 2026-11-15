@@ -4,10 +4,16 @@
 //! match alone never selects a characteristic and a successful write only means
 //! the Bluetooth stack accepted bytes, not that a physical label was printed.
 
+use crate::{
+    niimbot_protocol as niim,
+    niimbot_session::{BleIo, Session},
+    protocol::RasterPrintJob,
+};
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[path = "capabilities.rs"]
@@ -41,6 +47,8 @@ pub struct Printer {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionInfo {
+    pub protocol: String,
+    pub supported_for_printing: bool,
     pub id: String,
     pub name: String,
     pub service_uuid: String,
@@ -71,6 +79,7 @@ pub struct SendReceipt {
 
 #[derive(Clone)]
 struct Connection {
+    niimbot: Option<Arc<tokio::sync::Mutex<Session<BleIo>>>>,
     peripheral: Peripheral,
     characteristic: Characteristic,
     write_type: WriteType,
@@ -357,11 +366,75 @@ impl Bluetooth {
             )
             .await?;
             let (characteristic, notify_uuid, write_type) =
-                select_profile(&peripheral.characteristics())?;
+                select_family_profile(&peripheral.characteristics(), &printer.name)?;
             let mut capability_report = read_gatt_capabilities(&peripheral).await;
             // Only this model/dialect has been exercised in this investigation.
             // Unknown printer families still get standard GATT information.
-            if printer.name.trim().eq_ignore_ascii_case("DB403") {
+            let family = route_protocol(&printer.name, characteristic.service_uuid);
+            let mut supported_for_printing=family!="unsupported";
+            let mut niimbot = None;
+            if family == "niimbot" {
+                if characteristic.service_uuid != Uuid::from_u128(niim::SERVICE)
+                    || characteristic.uuid != Uuid::from_u128(niim::CHARACTERISTIC)
+                {
+                    return Err(
+                        "This NIIMBOT endpoint has not been verified. No print data was sent."
+                            .into(),
+                    );
+                }
+                let notify = peripheral
+                    .characteristics()
+                    .into_iter()
+                    .find(|item| {
+                        Some(item.uuid) == notify_uuid
+                            && item.service_uuid == characteristic.service_uuid
+                    })
+                    .ok_or("NIIMBOT requires a notification endpoint.")?;
+                let stream = bounded(
+                    "Observe NIIMBOT responses",
+                    IO_TIMEOUT,
+                    peripheral.notifications(),
+                )
+                .await?;
+                self.cleanup_notification = Some(notify.clone());
+                bounded(
+                    "Subscribe to NIIMBOT responses",
+                    IO_TIMEOUT,
+                    peripheral.subscribe(&notify),
+                )
+                .await?;
+                let mut session = Session::new(BleIo {
+                    peripheral: peripheral.clone(),
+                    write: characteristic.clone(),
+                    notify,
+                    mode: write_type,
+                    stream,
+                });
+                session.initialize(&AtomicBool::new(false)).await?;
+                supported_for_printing=session.supports_printing();
+                for item in &session.history {
+                    capability_report.exchanges.push(exchange(
+                        "niimbot-init",
+                        characteristic.uuid,
+                        "notification",
+                        &niim::frame(item.command, &item.data),
+                        Some(
+                            "Read-only connection and model inquiries; experimental D110 driver"
+                                .into(),
+                        ),
+                    ));
+                }
+                capability_report.capabilities.set_d110_specification();
+                capability_report.capabilities.connect_result=session.connect_result;
+                capability_report.capabilities.protocol_version=session.protocol_version;
+                capability_report.capabilities.field_sources.insert("connectResult".into(),"Live NIIMBOT Connect response 0xC2".into());
+                capability_report.capabilities.field_sources.insert("protocolVersion".into(),"Negotiated from live Connect result and PrinterStatusData when supported".into());
+                if let Some(stock)=session.stock_code.clone() {
+                    capability_report.capabilities.stock_code=Some(stock);
+                    capability_report.capabilities.field_sources.insert("stockCode".into(),"Live NIIMBOT RFID response 0x1A[01] → 0x1B; stock barcode only, not detected dimensions".into());
+                }
+                niimbot = Some(Arc::new(tokio::sync::Mutex::new(session)));
+            } else if printer.name.trim().eq_ignore_ascii_case("DB403") {
                 query_model(
                     &peripheral,
                     &characteristic,
@@ -377,11 +450,16 @@ impl Bluetooth {
                 );
             }
             capability_report.capabilities.finish();
+            if niimbot.is_some() {
+                capability_report.capabilities.status = "model-specification".into();
+            }
             let mtu_probe = MtuProbe::for_connected(&peripheral).await;
             let negotiated_mtu = mtu_probe.current();
             let policy =
                 TransferPolicy::for_link(write_type == WriteType::WithResponse, negotiated_mtu);
             let info = ConnectionInfo {
+                protocol: family.into(),
+                supported_for_printing,
                 id: printer.id,
                 name: printer.name,
                 service_uuid: characteristic.service_uuid.to_string(),
@@ -392,12 +470,21 @@ impl Bluetooth {
                     WriteType::WithoutResponse => "without-response",
                 }
                 .into(),
-                max_chunk: policy.chunk_size,
+                max_chunk: if niimbot.is_some() {
+                    20
+                } else {
+                    policy.chunk_size
+                },
                 negotiated_mtu,
-                chunk_source: chunk_source(write_type, negotiated_mtu),
+                chunk_source: if niimbot.is_some() {
+                    "niimbot-conservative-att-baseline".into()
+                } else {
+                    chunk_source(write_type, negotiated_mtu)
+                },
                 capabilities: capability_report.capabilities.clone(),
             };
             Ok::<_, String>(Connection {
+                niimbot,
                 peripheral: peripheral.clone(),
                 characteristic,
                 write_type,
@@ -439,6 +526,13 @@ impl Bluetooth {
                 .map(|connection| connection.peripheral.clone())
         });
         if let Some(peripheral) = peripheral {
+            if let Some(notification) = self.cleanup_notification.take() {
+                let _ = timeout(
+                    Duration::from_millis(500),
+                    peripheral.unsubscribe(&notification),
+                )
+                .await;
+            }
             if let Err(error) =
                 bounded("Disconnect printer", IO_TIMEOUT, peripheral.disconnect()).await
             {
@@ -536,6 +630,61 @@ impl Bluetooth {
             .map(|connection| connection.capability_report.clone())
     }
 
+    pub fn validate_job_protocol(&self, protocol: &str) -> Result<(), String> {
+        let info = &self
+            .connection
+            .as_ref()
+            .ok_or("Connect a printer before printing.")?
+            .info;
+        validate_protocol_match(&info.protocol, info.supported_for_printing, protocol)
+    }
+
+    pub async fn print_niimbot(
+        &mut self,
+        job: &RasterPrintJob,
+        progress: impl Fn(usize, usize),
+        cancel: &AtomicBool,
+    ) -> Result<SendReceipt, String> {
+        self.validate_job_protocol(&job.protocol)?;
+        // All validation and rotation finish before even a density command.
+        let prepared = niim::prepare(job)?;
+        if self.status().await?.is_none() {
+            return Err("Printer disconnected.".into());
+        }
+        let connection = self
+            .connection
+            .as_ref()
+            .ok_or("Printer disconnected.")?
+            .clone();
+        let session = connection
+            .niimbot
+            .ok_or("Verified NIIMBOT session is required.")?;
+        let started = std::time::Instant::now();
+        let result = session
+            .lock()
+            .await
+            .print(&prepared, cancel, progress)
+            .await;
+        match result {
+            Ok((bytes, chunks)) => {
+                let elapsed = started.elapsed();
+                Ok(SendReceipt {bytes_sent:bytes,chunks_sent:chunks,message:"D110 acknowledged completion. Experimental driver; inspect the physical label.".into(),elapsed_ms:elapsed.as_millis() as u64,bytes_per_second:bytes as f64/elapsed.as_secs_f64().max(0.001),max_chunk:20,negotiated_mtu:None,chunk_source:"niimbot-conservative-att-baseline".into(),write_mode:connection.info.write_mode,host_rate_limit_bps:None,pacing_delay_ms:10})
+            }
+            Err(error) => {
+                // Invalidate local printing even when physical disconnect fails.
+                // Retain only the target needed for a later cleanup attempt.
+                if let Some(mut failed) = self.connection.take() {
+                    failed.mtu_probe.close();
+                    self.cleanup_target.get_or_insert(failed.peripheral.clone());
+                }
+                let _ = self.disconnect().await;
+                Err(format!(
+                    "{error} Check the physical label before retrying; the job was not replayed."
+                ))
+            }
+        }
+    }
+
     pub async fn send(
         &mut self,
         bytes: &[u8],
@@ -551,6 +700,11 @@ impl Bluetooth {
         progress: impl Fn(usize, usize),
         cancel: &AtomicBool,
     ) -> Result<SendReceipt, String> {
+        if let Some(connection) = &self.connection {
+            if !connection.info.supported_for_printing || connection.info.protocol == "niimbot" {
+                return Err("This connection requires a verified printer session; raw printing is disabled.".into());
+            }
+        }
         if bytes.is_empty() || bytes.len() > transport::MAX_TRANSFER_BYTES {
             return Err("Print data must contain 1 to 1,048,576 bytes.".into());
         }
@@ -609,6 +763,36 @@ impl Bluetooth {
             host_rate_limit_bps: policy.host_rate_limit_bps,
             pacing_delay_ms: policy.minimum_gap.as_millis() as u64,
         })
+    }
+}
+
+fn route_protocol(name: &str, service: Uuid) -> &'static str {
+    let name = name.trim().to_ascii_uppercase();
+    if name.starts_with("D110")
+        || name.starts_with("D11")
+        || name.starts_with("NIIM")
+        || service == Uuid::from_u128(niim::SERVICE)
+    {
+        "niimbot"
+    } else if name == "DB403" {
+        "zpl"
+    } else if ["XP-428A", "XP428A", "4B-2084A", "4B2084A", "DB402"]
+        .iter()
+        .any(|prefix| name.starts_with(prefix))
+    {
+        "tspl"
+    } else {
+        // Preserve established compatibility for existing non-NIIM families.
+        "zpl"
+    }
+}
+fn validate_protocol_match(connection: &str, supported: bool, job: &str) -> Result<(), String> {
+    if !supported || connection == "unsupported" {
+        Err("This printer has no verified print profile. No print data was sent.".into())
+    } else if connection != job {
+        Err("The label's printer format does not match the connected printer. Reconnect or prepare the label again.".into())
+    } else {
+        Ok(())
     }
 }
 
@@ -800,6 +984,39 @@ fn short_uuid(value: u16) -> Uuid {
 /// This conservative discovery route accepts a single writable endpoint in that
 /// pair; ambiguous or unrelated characteristics need an explicitly added profile.
 /// A service match does not establish the printer's command language.
+fn select_family_profile(
+    characteristics: &BTreeSet<Characteristic>,
+    name: &str,
+) -> Result<(Characteristic, Option<Uuid>, WriteType), String> {
+    // Preserve the exercised DB403 route. Other devices that expose NIIMBOT's
+    // exact endpoint must use its binary identity handshake even when they also
+    // advertise the generic 49535343 UART compatibility service.
+    if !name.trim().eq_ignore_ascii_case("DB403") {
+        if let Some(write) = characteristics.iter().find(|item| {
+            item.service_uuid == Uuid::from_u128(niim::SERVICE)
+                && item.uuid == Uuid::from_u128(niim::CHARACTERISTIC)
+                && item
+                    .properties
+                    .intersects(CharPropFlags::WRITE | CharPropFlags::WRITE_WITHOUT_RESPONSE)
+        }) {
+            let notify = write
+                .properties
+                .intersects(CharPropFlags::NOTIFY | CharPropFlags::INDICATE)
+                .then_some(write.uuid);
+            let mode = if write
+                .properties
+                .contains(CharPropFlags::WRITE_WITHOUT_RESPONSE)
+            {
+                WriteType::WithoutResponse
+            } else {
+                WriteType::WithResponse
+            };
+            return Ok((write.clone(), notify, mode));
+        }
+    }
+    select_profile(characteristics)
+}
+
 fn select_profile(
     characteristics: &BTreeSet<Characteristic>,
 ) -> Result<(Characteristic, Option<Uuid>, WriteType), String> {
@@ -884,6 +1101,46 @@ fn write_mode(characteristic: &Characteristic) -> WriteType {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn family_and_mismatch_guards() {
+        assert_eq!(route_protocol("DB403", short_uuid(0x18f0)), "zpl");
+        assert_eq!(route_protocol("XP-428A", short_uuid(0xfff0)), "tspl");
+        assert_eq!(route_protocol("unknown", short_uuid(0xfff0)), "zpl");
+        assert_eq!(route_protocol("D110_123", short_uuid(0x18f0)), "niimbot");
+        assert_eq!(
+            route_protocol("DB403", Uuid::from_u128(niim::SERVICE)),
+            "niimbot"
+        );
+        assert!(validate_protocol_match("niimbot", true, "zpl").is_err());
+        assert!(validate_protocol_match("unsupported", false, "zpl").is_err());
+        assert!(validate_protocol_match("niimbot", true, "niimbot").is_ok());
+    }
+    #[test]
+    fn niimbot_endpoint_wins_over_compatibility_uart_for_other_models() {
+        let niim = Characteristic {
+            uuid: Uuid::from_u128(niim::CHARACTERISTIC),
+            service_uuid: Uuid::from_u128(niim::SERVICE),
+            properties: CharPropFlags::WRITE_WITHOUT_RESPONSE | CharPropFlags::NOTIFY,
+            descriptors: BTreeSet::new(),
+        };
+        let uart = Characteristic {
+            uuid: Uuid::from_u128(0x49535343_8841_43f4_a8d4_ecbe34729bb3),
+            service_uuid: Uuid::from_u128(0x49535343_fe7d_4ae5_8fa9_9fafd205e455),
+            properties: CharPropFlags::WRITE,
+            descriptors: BTreeSet::new(),
+        };
+        let chars = BTreeSet::from([niim.clone(), uart]);
+        for name in ["D110", "Unknown"] {
+            let (write, notify, mode) = select_family_profile(&chars, name).unwrap();
+            assert_eq!(write.uuid, niim.uuid);
+            assert_eq!(notify, Some(niim.uuid));
+            assert_eq!(mode, WriteType::WithoutResponse);
+        }
+        assert_ne!(
+            select_family_profile(&chars, "DB403").unwrap().0.uuid,
+            niim.uuid
+        );
+    }
 
     #[tokio::test(start_paused = true)]
     async fn shutdown_without_radio_is_idempotent() {

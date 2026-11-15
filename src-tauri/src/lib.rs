@@ -1,4 +1,6 @@
 pub mod bluetooth;
+pub mod niimbot_protocol;
+mod niimbot_session;
 pub mod protocol;
 mod shutdown;
 mod template_store;
@@ -195,11 +197,57 @@ async fn submit_print(
                 state.cancelled.store(true, Ordering::SeqCst);
                 return Err("The application is closing.".into());
             }
+            let mut bluetooth = state.bluetooth.lock().await;
+            let job_protocol = match &input {
+                PrintInput::Rgba(job) => &job.protocol,
+                PrintInput::Packed(job) => &job.protocol,
+            };
+            bluetooth.validate_job_protocol(job_protocol)?;
+            if job_protocol == "niimbot" {
+                let job = match input {
+                    PrintInput::Packed(job) => job,
+                    PrintInput::Rgba(job) => {
+                        job.validate()?;
+                        RasterPrintJob {
+                            width_mm: job.width_mm,
+                            height_mm: job.height_mm,
+                            gap_mm: job.gap_mm,
+                            dpi: job.dpi,
+                            copies: job.copies,
+                            density: job.density,
+                            raster: protocol::monochrome(&job),
+                            width_px: job.width_px,
+                            height_px: job.height_px,
+                            threshold: job.threshold,
+                            protocol: job.protocol,
+                        }
+                    }
+                };
+                let transfer_started = std::time::Instant::now();
+                let result = bluetooth
+                    .print_niimbot(
+                        &job,
+                        |sent, total| {
+                            let _ = app.emit(
+                                "print-progress",
+                                PrintProgress {
+                                    sent,
+                                    total,
+                                    elapsed_ms: transfer_started.elapsed().as_millis(),
+                                    bytes_per_second: 0.0,
+                                },
+                            );
+                        },
+                        &state.cancelled,
+                    )
+                    .await;
+                *state.connection.lock().await = bluetooth.status().await.unwrap_or(None);
+                return result;
+            }
             let (encoded, width_px, dpi) = match input {
                 PrintInput::Rgba(job) => (protocol::encode(&job)?, job.width_px, job.dpi),
                 PrintInput::Packed(job) => (protocol::encode_raster(&job)?, job.width_px, job.dpi),
             };
-            let mut bluetooth = state.bluetooth.lock().await;
             if let Some(report) = bluetooth.capability_report() {
                 report.capabilities.validate_raster(width_px, dpi)?;
             }

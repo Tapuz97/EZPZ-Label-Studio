@@ -1,7 +1,5 @@
 //! Printer capability inventory using the exact app transport. Never prints.
-#[allow(dead_code)]
-#[path = "../src/bluetooth.rs"]
-mod bluetooth;
+use ble_label_studio_lib::bluetooth;
 
 #[tokio::main]
 async fn main() {
