@@ -18,6 +18,7 @@ export type LabelElement = {
   barcodeShowText?: boolean;
   strokeWidth?: number;
   frameStyle?: FrameStyle;
+  imageName?: string;
   crop?: { x: number; y: number; width: number; height: number };
   fontSize: number;
   fontFamily: string;
@@ -192,6 +193,8 @@ export function parseDocument(input: unknown): LabelDocument {
       throw Error("Images must be embedded PNG, JPEG or WebP files.");
     if (e.kind !== "image" && e.content.length > 4000)
       throw Error("Text and codes are limited to 4,000 characters.");
+    if (e.imageName !== undefined && (e.kind !== "image" || typeof e.imageName !== "string" || !e.imageName.trim() || e.imageName.length > 120 || /[\u0000-\u001f]/.test(e.imageName)))
+      throw Error("Invalid artwork name.");
     if (
       e.fontFamily !== undefined &&
       !systemFonts.includes(e.fontFamily as typeof systemFonts[number]) &&
@@ -242,6 +245,7 @@ export function parseDocument(input: unknown): LabelDocument {
       ...(e.barcodeShowText !== undefined ? {barcodeShowText: e.barcodeShowText} : {}),
       ...(e.strokeWidth !== undefined ? {strokeWidth: e.strokeWidth} : {}),
       ...(e.frameStyle !== undefined ? {frameStyle: e.frameStyle} : {}),
+      ...(e.imageName !== undefined ? {imageName: e.imageName} : {}),
       ...(e.crop !== undefined ? {crop: e.crop} : {}),
     } as LabelElement;
   });

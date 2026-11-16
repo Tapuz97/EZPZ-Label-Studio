@@ -23,6 +23,7 @@ import { FormSelect } from "@/components/form-select";
 import { useEffect, useRef, useState } from "react";
 import { FileImage, Upload, X, Trash2, Check } from "./icons";
 import { makeElement } from "./model";
+import { graphicFromFile, isSvgFile } from "./graphics";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { FileDuotoneIcon } from "@thesvg/ui-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -256,10 +257,23 @@ export function ImportFlow({
           } finally {
             await destroyTask(task);
           }
+        } else if (isSvgFile(file)) {
+          const graphic = await graphicFromFile(file, { maxSide: 2400 });
+          if (!active(id)) return;
+          const image = new Image();
+          image.src = graphic.data;
+          await image.decode();
+          if (!active(id)) return;
+          const rasterPixels = image.naturalWidth * image.naturalHeight;
+          pixels += rasterPixels;
+          checkBudget(pixels);
+          setPreparation({ name: file.name, preview: graphic.data, percent: 65 });
+          additions.push({ batchId, name: file.name, data: graphic.data, rasterPixels,
+            width: graphic.width, height: graphic.height, widthMm: graphic.widthMm, heightMm: graphic.heightMm });
         } else {
           if (!/\.(png|jpe?g|webp|bmp|gif)$/i.test(file.name))
             throw Error(
-              "Supported artwork: PDF, PNG, JPEG, WebP, BMP and GIF (first frame).",
+              "Supported artwork: PDF, SVG, PNG, JPEG, WebP, BMP and GIF (first frame).",
             );
           const url = URL.createObjectURL(file);
           try {
@@ -499,15 +513,15 @@ export function ImportFlow({
               <strong>
                 {busy ? "Preparing files…" : "Choose or drop files"}
               </strong>
-              <span>PDF · PNG · JPEG · WebP · BMP · GIF</span>
-              <small>Up to 30 MB per file · 50 pages per job</small>
+              <span>PDF · SVG · PNG · JPEG · WebP · BMP · GIF</span>
+              <small>SVG up to 5 MB · other files up to 30 MB · 50 pages per job</small>
             </Button>
             <FormInput
               ref={input}
               type="file"
               hidden
               multiple
-              accept=".pdf,.png,.jpg,.jpeg,.webp,.bmp,.gif"
+              accept=".pdf,.svg,.png,.jpg,.jpeg,.webp,.bmp,.gif"
               onChange={(e) => {
                 void files([...(e.target.files ?? [])]);
                 e.target.value = "";

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added a searchable offline library of 2,052 printable icons.
+- Added SVG/PNG emoji artwork imports with editable image layers and portable template storage.
+- Added SVG support to artwork uploads and QR-code logos.
+
 ## 0.7.3
 
 - Added offline monochrome printing for Unicode emoji and symbols, alongside ASCII emoticons.

@@ -1,5 +1,8 @@
 import { SocialGithubDuotoneIcon } from "@thesvg/ui-react";
 import { CreatorToolbar } from "./CreatorToolbar";
+import { GraphicPicker } from "./GraphicPicker";
+import { graphicFromFile, graphicPlacement } from "./graphics";
+import type { PrintableGraphic } from "./graphics";
 import { FontSelect } from "./FontSelect";
 import { fontFromFile, withDocumentFonts } from "./fonts";
 import { listCustomFonts, saveCustomFonts } from "./font-store";
@@ -277,6 +280,7 @@ export default function App() {
   const [showImport, setShowImport] = useState(false);
   const [showPrinter, setShowPrinter] = useState(false);
   const [showFrames, setShowFrames] = useState(false);
+  const [showGraphics, setShowGraphics] = useState(false);
   const [history, setHistory] = useState<History>(() => ({
     past: [],
     present: loadDocument(),
@@ -648,7 +652,8 @@ export default function App() {
         screen !== "editor" ||
         showImport ||
         showPrinter ||
-        showFrames
+        showFrames ||
+        showGraphics
       )
         return;
       const target = event.target as HTMLElement;
@@ -709,7 +714,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedId, screen, showImport, showPrinter, showFrames]);
+  }, [selectedId, screen, showImport, showPrinter, showFrames, showGraphics]);
   function addFrame(style: FrameStyle) {
     if (doc.elements.length >= 100) {
       report(Error("A label can contain up to 100 elements."));
@@ -1052,32 +1057,26 @@ export default function App() {
     setError("");
     return path === null ? null : (path ?? "download");
   }
+  function addGraphics(graphics: PrintableGraphic[], maximum = 20) {
+    const target = latestDocument.current;
+    if (target.elements.length + graphics.length > 100)
+      throw Error("A label can contain up to 100 elements.");
+    const elements = graphics.map(graphic => ({
+      ...makeElement("image"),
+      ...graphicPlacement(graphic, target, maximum),
+      content: graphic.data,
+      imageName: graphic.name.replace(/[\u0000-\u001f]/g, " ").trim().slice(0, 120) || "Artwork",
+    }));
+    update(document => ({ ...document, elements: [...document.elements, ...elements] }));
+    setSelectedId(elements.at(-1)?.id ?? null);
+    clearMessages();
+    setNotice(`Added ${elements.length} artwork element${elements.length === 1 ? "" : "s"}. Resize or crop on the label and review the print preview.`);
+  }
   async function importImage(file?: File) {
     if (!file) return;
     clearMessages();
     try {
-      if (
-        !["image/png", "image/jpeg", "image/webp"].includes(file.type) ||
-        file.size > 5_000_000
-      )
-        throw Error("Choose a PNG, JPEG or WebP image smaller than 5 MB.");
-      const content = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result));
-        r.onerror = reject;
-        r.readAsDataURL(file);
-      });
-      const image = new Image();
-      image.src = content;
-      await image.decode();
-      const width = Math.min(doc.widthMm - 6, 40),
-        height = Math.min(
-          doc.heightMm - 6,
-          (width * image.height) / image.width,
-        );
-      const el = { ...makeElement("image"), content, width, height };
-      update((d) => ({ ...d, elements: [...d.elements, el] }));
-      setSelectedId(el.id);
+      addGraphics([await graphicFromFile(file)], 40);
     } catch (e) {
       report(e);
     }
@@ -1472,6 +1471,14 @@ export default function App() {
                 <Button
                   variant="outline"
                   className="button full"
+                  onClick={() => setShowGraphics(true)}
+                >
+                  <ImagePlus />
+                  Icons &amp; emoji artwork
+                </Button>
+                <Button
+                  variant="outline"
+                  className="button full"
                   onClick={() => setShowImport(true)}
                 >
                   <FileImage size={16} />
@@ -1522,7 +1529,7 @@ export default function App() {
                           el.kind === "qr"
                             ? el.content || "Empty content"
                             : el.kind === "image"
-                              ? "Image"
+                              ? el.imageName ?? "Image"
                               : el.kind === "rect"
                                 ? `${framePresets.find((frame) => frame.id === (el.frameStyle ?? "plain"))?.name ?? "Plain"} frame`
                                 : "Line"}
@@ -1790,6 +1797,7 @@ export default function App() {
                   onAddFonts={addFonts}
                   onInsertText={insertText}
                   onFocusText={focusText}
+                  onOpenGraphics={() => setShowGraphics(true)}
                 />
               ) : undefined
             }
@@ -1909,7 +1917,7 @@ export default function App() {
                     >
                       <Button
                         variant="ghost"
-                        aria-label={`Select ${el.kind}: ${el.kind === "image" ? "image" : el.content}`}
+                        aria-label={`Select ${el.kind}: ${el.kind === "image" ? el.imageName ?? "image" : el.content}`}
                         className={`element-hitbox ${selectedId === el.id ? "selected" : ""}`}
                         style={{
                           background: "transparent",
@@ -2570,7 +2578,7 @@ export default function App() {
       <FormInput
         ref={imageRef}
         type="file"
-        accept="image/png,image/jpeg,image/webp"
+        accept=".svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,image/webp"
         hidden
         onChange={(e) => {
           void importImage(e.target.files?.[0]);
@@ -2608,6 +2616,7 @@ export default function App() {
         onConnect={(device) => void connect(device)}
         onDisconnect={() => void disconnect()}
       />
+      <GraphicPicker open={showGraphics} onOpenChange={setShowGraphics} onAdd={addGraphics} />
       {showImport && (
         <ImportFlow
           doc={doc}

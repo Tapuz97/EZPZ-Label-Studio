@@ -85,7 +85,11 @@ required columns are validated before any labels are sent.
   and adjust line and border thickness.
 - Choose from 12 original frame styles with visual previews. Frames work with
   every printer, resize and rotate like other components, and save with templates.
-- Import PDF, PNG, JPEG, WebP, BMP, or GIF (first frame). Export designs as PNG or
+- Use **Icons & emoji artwork** to search 2,052 offline Lucide icons or import
+  your own SVG/PNG emoji. Artwork keeps its proportions and transparency, works
+  with existing image controls, and saves inside templates. SVG files are
+  prepared locally as high-resolution PNGs; linked resources are not loaded.
+- Import PDF, SVG, PNG, JPEG, WebP, BMP, or GIF (first frame). Export designs as PNG or
   reusable label files.
 
 </details>

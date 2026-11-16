@@ -3,6 +3,7 @@ import { CropEditor } from "./CropEditor";
 import { FramePicker, FramePreview } from "./FramePicker";
 import { framePresets } from "./frames";
 import type { LabelElement } from "./model";
+import { graphicFromFile } from "./graphics";
 import { Input } from "./components/ui/input";
 import { Checkbox } from "./components/ui/checkbox";
 import { Button } from "./components/ui/button";
@@ -49,26 +50,8 @@ export function ComponentSettings({
     const owner = e.id;
     setLoading(true);
     try {
-      if (!/^image\/(png|jpeg|webp)$/.test(source.type))
-        throw Error("Choose a PNG, JPEG or WebP logo.");
-      if (source.size > 8_000_000)
-        throw Error("Choose a logo smaller than 8 MB.");
-      const bitmap = await createImageBitmap(source);
-      try {
-        if (bitmap.width * bitmap.height > 40_000_000)
-          throw Error("Logo exceeds 40 million pixels.");
-        const ratio = Math.min(1, 256 / Math.max(bitmap.width, bitmap.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
-        canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
-        canvas
-          .getContext("2d")!
-          .drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        if (selected.current === owner)
-          onChange({ qrLogo: canvas.toDataURL("image/png"), qrShowLogo: true });
-      } finally {
-        bitmap.close();
-      }
+      const graphic = await graphicFromFile(source, { maxSide: 256, maxBytes: 8_000_000, maxPixels: 40_000_000 });
+      if (selected.current === owner) onChange({ qrLogo: graphic.data, qrShowLogo: true });
     } catch (error) {
       onError(error);
     } finally {
@@ -115,7 +98,7 @@ export function ComponentSettings({
               ref={file}
               id={`${id}-logo-file`}
               type="file"
-              accept="image/png,image/jpeg,image/webp"
+              accept=".svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,image/webp"
               disabled={loading}
               onChange={(event) => void uploadLogo(event.target.files?.[0])}
             />

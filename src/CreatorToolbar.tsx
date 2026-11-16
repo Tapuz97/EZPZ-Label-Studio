@@ -20,7 +20,7 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  Bold,
+  Bold, Sticker,
 } from "lucide-react";
 import { ArrowUp, ArrowDown, RotateCw } from "./icons";
 import { FontSelect } from "./FontSelect";
@@ -47,6 +47,7 @@ export function CreatorToolbar({
   onAddFonts,
   onInsertText,
   onFocusText,
+  onOpenGraphics,
 }: {
   element: LabelElement;
   elements: LabelElement[];
@@ -60,6 +61,7 @@ export function CreatorToolbar({
   onAddFonts: (files: File[]) => Promise<void>;
   onInsertText: (text: string) => void;
   onFocusText: () => void;
+  onOpenGraphics: () => void;
 }) {
   const [cropping, setCropping] = useState(false);
   return (
@@ -68,6 +70,7 @@ export function CreatorToolbar({
       aria-label="Component creator tools"
       className="flex flex-wrap items-center gap-x-3 gap-y-2"
     >
+      <ToolbarTooltip label="Icons & emoji artwork"><Button variant="ghost" size="icon-sm" aria-label="Icons & emoji artwork" onClick={onOpenGraphics}><Sticker /></Button></ToolbarTooltip>
       {element.kind === "image" && (
         <ToolbarTooltip label="Crop image"><Button
           variant="ghost"
